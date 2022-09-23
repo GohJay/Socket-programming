@@ -167,6 +167,16 @@ void GameServer::Listen()
 		return;
 	}
 
+	u_long nonBlockingMode = 1;
+	result = ioctlsocket(_listenSocket, FIONBIO, &nonBlockingMode);
+	if (result == SOCKET_ERROR)
+	{
+		int err = WSAGetLastError();
+		wprintf(L"GameServer::Listen() Failed ioctlsocket: %d\n", err);
+		closesocket(_listenSocket);
+		return;
+	}
+
 	tcp_keepalive tcpkl;
 	tcpkl.onoff = 1;
 	tcpkl.keepalivetime = 5000;

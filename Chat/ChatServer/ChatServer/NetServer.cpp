@@ -105,6 +105,16 @@ void NetServer::Listen()
 		return;
 	}
 
+	u_long nonBlockingMode = 1;
+	result = ioctlsocket(_listenSocket, FIONBIO, &nonBlockingMode);
+	if (result == SOCKET_ERROR)
+	{
+		int err = WSAGetLastError();
+		wprintf(L"NetServer::Listen() Failed ioctlsocket: %d\n", err);
+		closesocket(_listenSocket);
+		return;
+	}
+
 	SOCKADDR_IN tListenAddr = {};
 	tListenAddr.sin_family = AF_INET;
 	tListenAddr.sin_port = htons(dfNETWORK_PORT);
@@ -118,7 +128,7 @@ void NetServer::Listen()
 		return;
 	}
 
-	result = listen(_listenSocket, SOMAXCONN);
+	result = listen(_listenSocket, SOMAXCONN_HINT(65535));
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
