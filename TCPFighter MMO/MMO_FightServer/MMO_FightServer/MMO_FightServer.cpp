@@ -7,6 +7,7 @@ bool g_Shutdown = false;
 int main()
 {
 	timeBeginPeriod(1);
+
 	while (!g_Shutdown)
 	{
 		Timer::GetInstance()->Update();
@@ -14,6 +15,9 @@ int main()
 		ServerManager::GetInstance()->Control();
 		ServerManager::GetInstance()->Monitor();
 	}
+	wprintf_s(L"Press any key to continue . . . ");
+	_getwch();
+
 	timeEndPeriod(1);
 	return 0;
 }

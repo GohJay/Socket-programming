@@ -3,16 +3,18 @@
 #include "Timer.h"
 #include "define.h"
 #include <conio.h>
+#include "../Common/Logger.h"
+#include "../Lib/TextParser/include/ConfigParser.h"
+#pragma comment(lib, "../Lib/TextParser/lib/TextParser.lib")
 
 extern bool g_Shutdown;
 ServerManager ServerManager::_instance;
 ServerManager::ServerManager() : _controlMode(false), _monitoringFlag(false), _loopCount(0), _frameCount(0), _accumtime(0), _monitoringTime(0)
 {
-	_server = new GameServer();
+	Init();
 }
 ServerManager::~ServerManager()
 {
-	delete _server;
 }
 ServerManager * ServerManager::GetInstance()
 {
@@ -24,7 +26,7 @@ void ServerManager::Run()
 
 	// Network IO
 	beforeTime = timeGetTime();
-	_server->Network();
+	_server.Network();
 	_networkProcTime += timeGetTime() - beforeTime;
 
 	// Logic Update
@@ -32,7 +34,7 @@ void ServerManager::Run()
 	if (_accumtime >= dfINTERVAL)
 	{
 		beforeTime = timeGetTime();
-		_server->Update();
+		_server.Update();
 		_logicProcTime += timeGetTime() - beforeTime;
 
 		_accumtime -= dfINTERVAL;
@@ -41,7 +43,7 @@ void ServerManager::Run()
 
 	// Session Cleanup
 	beforeTime = timeGetTime();
-	_server->Cleanup();
+	_server.Cleanup();
 	_cleanupProcTime += timeGetTime() - beforeTime;
 
 	_loopCount++;
@@ -50,7 +52,7 @@ void ServerManager::Control()
 {
 	if (_kbhit())
 	{
-		wchar_t controlKey = _getch();
+		wchar_t controlKey = _getwch();
 
 		// 키보드 제어 허용
 		if (controlKey == L'u' || controlKey == L'U')
@@ -59,6 +61,7 @@ void ServerManager::Control()
 			wprintf_s(L"Control Mode: Press Q - Quit\n");
 			wprintf_s(L"Control Mode: Press L - Key Lock\n");
 			wprintf_s(L"Control Mode: Press M - Monitoring\n");
+			wprintf_s(L"Control Mode: Press R - Reload LogLevel\n");
 		}
 
 		// 키보드 제어 잠금
@@ -78,6 +81,18 @@ void ServerManager::Control()
 		{
 			_monitoringFlag = !_monitoringFlag;
 		}
+
+		if ((controlKey == L'r' || controlKey == L'R') && _controlMode)
+		{
+			Jay::ConfigParser confParser;
+			confParser.LoadFile(L"Config.cnf");
+
+			int logLevel;
+			confParser.GetValue(L"SERVER", L"LOG", &logLevel);
+			Jay::Logger::GetInstance()->SetLogLevel(logLevel);
+
+			wprintf_s(L"Succed Reload LogLevel [%d] . . . \n", logLevel);
+		}
 	}
 }
 void ServerManager::Monitor()
@@ -85,6 +100,32 @@ void ServerManager::Monitor()
 	DWORD currentTime = timeGetTime();
 	if (currentTime - _monitoringTime < 1000)
 		return;
+
+	if (_frameCount != dfFRAME)
+	{
+		// 모니터링 정보 파일 로그 출력
+		Jay::Logger::GetInstance()->WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"\n\
+Frame: %d, Loop/sec: %d\n\
+------------------------------------\n\
+Session Count: %d\n\
+Character Count: %d\n\
+------------------------------------\n\
+NetworkProc Time: %d ms\n\
+Logic Time: %d ms\n\
+Cleanup Time: %d ms\n\
+------------------------------------\n\
+Sync Message Count: %d\n\
+Unknown Message Count: %d\n\
+\n====================================\n"
+			, _frameCount, _loopCount
+			, _server._sessionMap.Size()
+			, _server._characterMap.Size()
+			, _networkProcTime
+			, _logicProcTime
+			, _cleanupProcTime
+			, _server._syncErrorCount
+			, _server._unknownPacketCount);
+	}
 
 	tm stTime;
 	time_t timer;
@@ -94,18 +135,29 @@ void ServerManager::Monitor()
 		localtime_s(&stTime, &timer);
 
 		// 모니터링 정보 콘솔 출력
-		wprintf_s(L"[%d/%02d/%02d %02d:%02d:%02d]\n", stTime.tm_year + 1900, stTime.tm_mon + 1, stTime.tm_mday, stTime.tm_hour, stTime.tm_min, stTime.tm_sec);
-		wprintf_s(L"Frame: %d, Loop/sec: %d\n", _frameCount, _loopCount);
-		wprintf_s(L"------------------------------------\n");
-		wprintf_s(L"Session Count: %d\n", _server->_sessionMap.size());
-		wprintf_s(L"Character Count: %d\n", _server->_characterMap.size());
-		wprintf_s(L"------------------------------------\n");
-		wprintf_s(L"NetworkProc Time: %d ms\n", _networkProcTime);
-		wprintf_s(L"Logic Time: %d ms\n", _logicProcTime);
-		wprintf_s(L"Cleanup Time: %d ms\n", _cleanupProcTime);
-		wprintf_s(L"------------------------------------\n");
-		wprintf_s(L"Sync Message Count: %d\n", _server->_syncErrorCount);
-		wprintf_s(L"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+		wprintf_s(L"\
+[%d/%02d/%02d %02d:%02d:%02d]\n\
+Frame: %d, Loop/sec: %d\n\
+------------------------------------\n\
+Session Count: %d\n\
+Character Count: %d\n\
+------------------------------------\n\
+NetworkProc Time: %d ms\n\
+Logic Time: %d ms\n\
+Cleanup Time: %d ms\n\
+------------------------------------\n\
+Sync Message Count: %d\n\
+Unknown Message Count: %d\n\
+\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+			, stTime.tm_year + 1900, stTime.tm_mon + 1, stTime.tm_mday, stTime.tm_hour, stTime.tm_min, stTime.tm_sec
+			, _frameCount, _loopCount
+			, _server._sessionMap.Size()
+			, _server._characterMap.Size()
+			, _networkProcTime
+			, _logicProcTime
+			, _cleanupProcTime
+			, _server._syncErrorCount
+			, _server._unknownPacketCount);
 	}
 
 	// 모니터링 정보 초기화
@@ -115,4 +167,17 @@ void ServerManager::Monitor()
 	_logicProcTime = 0;
 	_cleanupProcTime = 0;
 	_monitoringTime = currentTime;
+}
+void ServerManager::Init()
+{
+	Jay::ConfigParser confParser;
+	confParser.LoadFile(L"Config.cnf");
+
+	int logLevel;
+	int serverPort;
+	confParser.GetValue(L"SERVER", L"LOG", &logLevel);
+	confParser.GetValue(L"SERVER", L"PORT", &serverPort);
+
+	Jay::Logger::GetInstance()->SetLogLevel(logLevel);
+	_server.Listen(serverPort);
 }

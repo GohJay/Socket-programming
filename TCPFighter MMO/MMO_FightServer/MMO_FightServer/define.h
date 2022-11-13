@@ -4,7 +4,6 @@
 // 기본 정보
 //-----------------------------------------------------------------
 #define dfSERVER_NAME			L"FightServer"
-#define dfSERVER_PORT			20000
 #define dfFRAME					25
 #define dfINTERVAL				1000 / dfFRAME
 #define dfMAX_USER				10000
@@ -54,7 +53,7 @@
 //-----------------------------------------------------------------
 // 월드캡 캐릭터 섹터 범위
 //-----------------------------------------------------------------
-#define dfSECTOR_SIZE_X			200
-#define dfSECTOR_SIZE_Y			200
+#define dfSECTOR_SIZE_X			150
+#define dfSECTOR_SIZE_Y			150
 #define dfSECTOR_MAX_X			(dfRANGE_MOVE_RIGHT / dfSECTOR_SIZE_X) + 1
 #define dfSECTOR_MAX_Y			(dfRANGE_MOVE_BOTTOM / dfSECTOR_SIZE_Y) + 1

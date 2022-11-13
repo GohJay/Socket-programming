@@ -1,5 +1,5 @@
 #pragma once
-#include "../Network/include/SerializationBuffer.h"
+#include "../Lib/Network/include/SerializationBuffer.h"
 #include "../Common/Protocol.h"
 
 class Packet

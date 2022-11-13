@@ -1,6 +1,6 @@
 #ifndef __RINGBUFFER__H_
 #define __RINGBUFFER__H_
-#include "../../Common/Base.h"
+#include "Base.h"
 
 JAYNAMESPACE
 /**

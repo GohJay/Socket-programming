@@ -21,8 +21,8 @@ namespace Jay
 				pData 사용
 				MemPool.Free(pData);
 	* @author   고재현
-	* @date		2022-08-25
-	* @version  1.0.1
+	* @date		2022-10-29
+	* @version  1.0.2
 	**/
 	template <typename T>
 	class ObjectPool
@@ -116,9 +116,9 @@ namespace Jay
 		* @param	T*(데이터 블럭 포인터)
 		* @return	void
 		**/
-		void Free(T* data) throw()
-		{
 #if SECURE_MODE
+		void Free(T* data) throw(...)
+		{
 			Node* block = (Node*)((char*)data - sizeof(size_t) - sizeof(size_t));
 			if (block->signature != (size_t)this)
 				throw std::exception("Incorrect signature");
@@ -127,6 +127,8 @@ namespace Jay
 			if (block->overflowGuard != MEM_GUARD)
 				throw std::exception("Memory overflow");
 #else
+		void Free(T* data)
+		{
 			Node* block = (Node*)data;
 #endif
 			if (_placementNew)

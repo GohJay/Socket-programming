@@ -16,7 +16,7 @@
     <Filter Include="Common">
       <UniqueIdentifier>{9e865e89-96fe-45f7-a674-d2adc281c547}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Network">
+    <Filter Include="Lib">
       <UniqueIdentifier>{ee4a0909-4464-453e-9868-71dfab7b959d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -48,26 +48,26 @@
     <ClInclude Include="Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\Protocol.h">
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="..\Common\ObjectPool.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\Base.h">
-      <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Network\include\RingBuffer.h">
-      <Filter>Network</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Network\include\SerializationBuffer.h">
-      <Filter>Network</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\Logger.h">
       <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\STLWrapper.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\Network\include\RingBuffer.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\Network\include\SerializationBuffer.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\TextParser\include\ConfigParser.h">
+      <Filter>Lib</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

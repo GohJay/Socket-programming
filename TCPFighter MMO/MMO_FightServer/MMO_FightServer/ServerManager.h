@@ -12,7 +12,9 @@ public:
 	void Control();
 	void Monitor();
 private:
-	GameServer* _server;
+	void Init();
+private:
+	GameServer _server;
 	bool _controlMode;
 	bool _monitoringFlag;
 	int _loopCount;

@@ -1,5 +1,5 @@
 #pragma once
-#include "../Network/include/RingBuffer.h"
+#include "../Lib/Network/include/RingBuffer.h"
 
 struct SECTOR
 {
@@ -16,7 +16,7 @@ struct SECTOR_AROUND
 struct SESSION
 {
 	bool enable;
-	unsigned int socket;
+	DWORD64 socket;
 	wchar_t ip[16];
 	int port;
 	DWORD sessionID;

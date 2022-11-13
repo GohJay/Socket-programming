@@ -4,9 +4,8 @@
 #include "../Common/Protocol.h"
 #include "../Common/ObjectPool.h"
 #include "../Common/Logger.h"
-#include "../Network/include/SerializationBuffer.h"
-#include <unordered_map>
-#include <list>
+#include "../Common/STLWrapper.h"
+#include "../Lib/Network/include/SerializationBuffer.h"
 #include <queue>
 
 class GameServer
@@ -15,11 +14,11 @@ public:
 	GameServer();
 	~GameServer();
 public:
+	void Listen(int port);
 	void Network();
 	void Update();
 	void Cleanup();
 private:
-	void Listen();
 	void SelectSocket(SOCKET* userSockTable, FD_SET* readset, FD_SET* writeset);
 	void AcceptProc();
 	void RecvProc(SOCKET socket);
@@ -56,16 +55,18 @@ private:
 	bool PacketProc_Sync(SESSION* session, Jay::SerializationBuffer* cs_packet);
 	bool PacketProc_Echo(SESSION* session, Jay::SerializationBuffer* cs_packet);
 private:
-	std::unordered_map<DWORD, SESSION*> _sessionMap;
+	HashMap<DWORD64, SESSION*> _sessionMap;
 	Jay::ObjectPool<SESSION> _sessionPool;
 	std::queue<SESSION*> _gcQueue;
-	std::unordered_map<DWORD, CHARACTER*> _characterMap;
+	HashMap<DWORD64, CHARACTER*> _characterMap;
 	Jay::ObjectPool<CHARACTER> _characterPool;
 	Jay::ObjectPool<Jay::SerializationBuffer> _packetPool;
-	std::list<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+	List<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
 	Jay::Logger* _log;
-	unsigned int _listenSocket;
+	SOCKET _listenSocket;
+	int _listenPort;
 	int _keySessionID;
 	int _syncErrorCount;
+	int _unknownPacketCount;
 	friend class ServerManager;
 };
