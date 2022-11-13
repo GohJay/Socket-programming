@@ -89,9 +89,9 @@ void ServerManager::Control()
 
 			int logLevel;
 			confParser.GetValue(L"SERVER", L"LOG", &logLevel);
-			Jay::Logger::GetInstance()->SetLogLevel(logLevel);
 
-			wprintf_s(L"Succed Reload LogLevel [%d] . . . \n", logLevel);
+			Jay::Logger::GetInstance()->SetLogLevel(logLevel);
+			wprintf_s(L"Succeed Reload LogLevel [%d] . . . \n", logLevel);
 		}
 	}
 }
@@ -168,10 +168,11 @@ Unknown Message Count: %d\n\
 	_cleanupProcTime = 0;
 	_monitoringTime = currentTime;
 }
-void ServerManager::Init()
+bool ServerManager::Init()
 {
 	Jay::ConfigParser confParser;
-	confParser.LoadFile(L"Config.cnf");
+	if (!confParser.LoadFile(L"Config.cnf"))
+		return false;
 
 	int logLevel;
 	int serverPort;
@@ -180,4 +181,5 @@ void ServerManager::Init()
 
 	Jay::Logger::GetInstance()->SetLogLevel(logLevel);
 	_server.Listen(serverPort);
+	return true;
 }

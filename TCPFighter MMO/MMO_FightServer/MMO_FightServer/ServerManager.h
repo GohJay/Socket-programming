@@ -12,7 +12,7 @@ public:
 	void Control();
 	void Monitor();
 private:
-	void Init();
+	bool Init();
 private:
 	GameServer _server;
 	bool _controlMode;
