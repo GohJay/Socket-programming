@@ -4,11 +4,11 @@
 #include "../../Common/List.h"
 
 class ServerManager;
-class Net_Server
+class NetServer
 {
 public:
-	Net_Server();
-	~Net_Server();
+	NetServer();
+	~NetServer();
 public:
 	void Update();
 	void Render();

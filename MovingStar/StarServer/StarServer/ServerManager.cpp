@@ -5,7 +5,7 @@
 ServerManager ServerManager::_instance;
 ServerManager::ServerManager()
 {
-	_server = new Net_Server();
+	_server = new NetServer();
 }
 ServerManager::~ServerManager()
 {

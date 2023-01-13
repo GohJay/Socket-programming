@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "Net_Server.h"
+#include "NetServer.h"
 #include "ScreenBuffer.h"
 #include "../../Common/Log.h"
 #include "../../Common/Protocol.h"
@@ -8,30 +8,23 @@
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "../../Network/lib/Release/Network.lib")
 
-#define CRASH \
-do\
-{\
-	int *ptr = nullptr;\
-	*ptr = 100;\
-} while(0)
-
-Net_Server::Net_Server() : _listenSocket(INVALID_SOCKET), _allocId(rand() % 1000)
+NetServer::NetServer() : _listenSocket(INVALID_SOCKET), _allocId(rand() % 1000)
 {
 	WSADATA ws;
 	int status = WSAStartup(MAKEWORD(2, 2), &ws);
 	if (status != 0)
 	{
-		Jay::WriteLog("Net_Server::Net_Server() Failed WSAStartup: %d\n", status);
-		CRASH;
+		Jay::WriteLog("NetServer::NetServer() Failed WSAStartup: %d\n", status);
+		throw;
 	}
 	Listen();
 }
-Net_Server::~Net_Server()
+NetServer::~NetServer()
 {
 	DestroyAll();
 	WSACleanup();
 }
-void Net_Server::Update()
+void NetServer::Update()
 {
 	fd_set rfds;
 	fd_set sfds;
@@ -50,9 +43,9 @@ void Net_Server::Update()
 	if (result == SOCKET_ERROR)
 	{
 		char msg[64];
-		sprintf_s(msg, "Net_Server::Update() Failed select: %d", WSAGetLastError());
+		sprintf_s(msg, "NetServer::Update() Failed select: %d", WSAGetLastError());
 		MessageBoxA(NULL, msg, "StarServer", MB_ICONERROR);
-		CRASH;
+		throw;
 	}
 
 	if (FD_ISSET(_listenSocket, &rfds))
@@ -72,7 +65,7 @@ void Net_Server::Update()
 			RecvProc(player);
 	}
 }  
-void Net_Server::Render()
+void NetServer::Render()
 {
 	ScreenBuffer::GetInstance()->Buffer_Clear();
 	for (auto iter = _playerList.begin(); iter != _playerList.end(); ++iter)
@@ -81,7 +74,7 @@ void Net_Server::Render()
 		ScreenBuffer::GetInstance()->Sprite_Draw(player->star.x, player->star.y, '*');
 	}
 }
-void Net_Server::Cleanup()
+void NetServer::Cleanup()
 {
 	for (auto iter = _playerList.begin(); iter != _playerList.end();)
 	{
@@ -96,13 +89,13 @@ void Net_Server::Cleanup()
 			++iter;
 	}
 }
-void Net_Server::Listen()
+void NetServer::Listen()
 {
 	_listenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (_listenSocket == INVALID_SOCKET)
 	{
 		int err = WSAGetLastError();
-		Jay::WriteLog("Net_Server::Listen() Failed socket: %d\n", err);
+		Jay::WriteLog("NetServer::Listen() Failed socket: %d\n", err);
 		return;
 	}
 
@@ -113,7 +106,7 @@ void Net_Server::Listen()
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
-		Jay::WriteLog("Net_Server::Listen() Failed setsockopt linger: %d\n", err);
+		Jay::WriteLog("NetServer::Listen() Failed setsockopt linger: %d\n", err);
 		closesocket(_listenSocket);
 		return;
 	}
@@ -123,7 +116,7 @@ void Net_Server::Listen()
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
-		wprintf(L"Net_Server::Listen() Failed ioctlsocket: %d\n", err);
+		wprintf(L"NetServer::Listen() Failed ioctlsocket: %d\n", err);
 		closesocket(_listenSocket);
 		return;
 	}
@@ -137,7 +130,7 @@ void Net_Server::Listen()
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
-		Jay::WriteLog("Net_Server::Listen() Failed WSAIoctl keepalive: %d\n", err);
+		Jay::WriteLog("NetServer::Listen() Failed WSAIoctl keepalive: %d\n", err);
 		closesocket(_listenSocket);
 		return;
 	}
@@ -150,7 +143,7 @@ void Net_Server::Listen()
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
-		Jay::WriteLog("Net_Server::Listen() Failed bind: %d\n", err);
+		Jay::WriteLog("NetServer::Listen() Failed bind: %d\n", err);
 		closesocket(_listenSocket);
 		return;
 	}
@@ -159,12 +152,12 @@ void Net_Server::Listen()
 	if (result == SOCKET_ERROR)
 	{
 		int err = WSAGetLastError();
-		Jay::WriteLog("Net_Server::Listen() Failed listen: %d\n", err);
+		Jay::WriteLog("NetServer::Listen() Failed listen: %d\n", err);
 		closesocket(_listenSocket);
 		return;
 	}
 }
-void Net_Server::AcceptProc()
+void NetServer::AcceptProc()
 {
 	SOCKADDR_IN clientAddr = {};
 	int clientSize = sizeof(clientAddr);
@@ -172,9 +165,9 @@ void Net_Server::AcceptProc()
 	if (client == INVALID_SOCKET)
 	{
 		char msg[64];
-		sprintf_s(msg, "Net_Server::Accept() Failed accept: %d", WSAGetLastError());
+		sprintf_s(msg, "NetServer::Accept() Failed accept: %d", WSAGetLastError());
 		MessageBoxA(NULL, msg, "StarServer", MB_ICONERROR);
-		CRASH;
+		throw;
 	}
 
 	Player *new_player = new Player;
@@ -209,9 +202,9 @@ void Net_Server::AcceptProc()
 		create_packet.y = player->star.y;
 		SendUnicast(new_player, (char*)&create_packet, sizeof(STAR_CREATE_PACKET));
 	}
-	Jay::WriteLog("Net_Server::AcceptProc() Connected IP: '%s', Port: '%d'\n", new_player->ip, new_player->port);
+	Jay::WriteLog("NetServer::AcceptProc() Connected IP: '%s', Port: '%d'\n", new_player->ip, new_player->port);
 } 
-void Net_Server::RecvProc(Player* player)
+void NetServer::RecvProc(Player* player)
 {
 	if (!player->enable)
 		return;
@@ -225,7 +218,7 @@ void Net_Server::RecvProc(Player* player)
 	case SOCKET_ERROR:
 		err = WSAGetLastError();
 		if (err != WSAECONNRESET)
-			Jay::WriteLog("Net_Server::Recv() Failed recv: %d\n", err);
+			Jay::WriteLog("NetServer::Recv() Failed recv: %d\n", err);
 	case 0:
 		Disable(player);
 		return;
@@ -236,7 +229,7 @@ void Net_Server::RecvProc(Player* player)
 	int ret = player->recvBuffer.Enqueue(buffer, size);
 	if (ret != size)
 	{
-		Jay::WriteLog("Net_Server::Recv() Failed recvBuffer::Enqueue() [size : %d]\n", ret);
+		Jay::WriteLog("NetServer::Recv() Failed recvBuffer::Enqueue() [size : %d]\n", ret);
 		Disable(player);
 		return;
 	}
@@ -248,13 +241,13 @@ void Net_Server::RecvProc(Player* player)
 		ret = player->recvBuffer.Dequeue(message, msgSize);
 		if (ret != msgSize)
 		{
-			Jay::WriteLog("Net_Server::Recv() Failed recvBuffer::Dequeue() [size : %d]\n", ret);
-			CRASH;
+			Jay::WriteLog("NetServer::Recv() Failed recvBuffer::Dequeue() [size : %d]\n", ret);
+			throw;
 		}
 		MessageProc(player, message);
 	}
 }
-void Net_Server::SendProc(Player * player)
+void NetServer::SendProc(Player * player)
 {
 	if (!player->enable)
 		return;
@@ -275,7 +268,7 @@ void Net_Server::SendProc(Player * player)
 		case WSAECONNRESET:
 			break;
 		default:
-			Jay::WriteLog("Net_Server::SendProc() Failed send error: %d, IP: '%s', Port: '%d'\n", err, player->ip, player->port);
+			Jay::WriteLog("NetServer::SendProc() Failed send error: %d, IP: '%s', Port: '%d'\n", err, player->ip, player->port);
 			break;
 		}
 		Disable(player);
@@ -283,7 +276,7 @@ void Net_Server::SendProc(Player * player)
 	}
 	player->sendBuffer.MoveFront(ret);
 }
-void Net_Server::MessageProc(Player * player, const char * message)
+void NetServer::MessageProc(Player * player, const char * message)
 {
 	int *type = (int*)message;
 	switch (*type)
@@ -305,21 +298,21 @@ void Net_Server::MessageProc(Player * player, const char * message)
 		}
 		break;
 	default:
-		Jay::WriteLog("Net_Server::MessageProc() UNKNOWN_PACKET\n");
+		Jay::WriteLog("NetServer::MessageProc() UNKNOWN_PACKET\n");
 		break;
 	}
 }
-void Net_Server::SendUnicast(Player * target, const char * message, int size)
+void NetServer::SendUnicast(Player * target, const char * message, int size)
 {
 	int ret = target->sendBuffer.Enqueue(message, size);
 	if (ret != size)
 	{
-		Jay::WriteLog("Net_Server::Recv() Failed sendBuffer::Enqueue() [size : %d]\n", ret);
+		Jay::WriteLog("NetServer::Recv() Failed sendBuffer::Enqueue() [size : %d]\n", ret);
 		Disable(target);
 		return;
 	}
 }
-void Net_Server::SendBroadcast(Player * exclusion, const char * message, int size)
+void NetServer::SendBroadcast(Player * exclusion, const char * message, int size)
 {
 	for (auto iter = _playerList.begin(); iter != _playerList.end(); ++iter)
 	{
@@ -328,20 +321,20 @@ void Net_Server::SendBroadcast(Player * exclusion, const char * message, int siz
 			SendUnicast(player, message, size);
 	}
 }
-void Net_Server::Disable(Player * player)
+void NetServer::Disable(Player * player)
 {
 	player->enable = false;
 }
-void Net_Server::Disconnect(Player * player)
+void NetServer::Disconnect(Player * player)
 {
 	STAR_DESTROY_PACKET packet;
 	packet.type = PACKET_TYPE::DESTROY;
 	packet.id = player->star.id;
 	SendBroadcast(player, (char*)&packet, sizeof(STAR_DESTROY_PACKET));
 	closesocket(player->socket);
-	Jay::WriteLog("Net_Server::Disconnect() Disconnect IP: '%s', Port: '%d'\n", player->ip, player->port);
+	Jay::WriteLog("NetServer::Disconnect() Disconnect IP: '%s', Port: '%d'\n", player->ip, player->port);
 }
-void Net_Server::DestroyAll()
+void NetServer::DestroyAll()
 {
 	for (auto iter = _playerList.begin(); iter != _playerList.end();)
 	{

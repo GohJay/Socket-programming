@@ -149,7 +149,7 @@
     <ClInclude Include="..\..\Common\Log.h" />
     <ClInclude Include="..\..\Common\Protocol.h" />
     <ClInclude Include="Console.h" />
-    <ClInclude Include="Net_Server.h" />
+    <ClInclude Include="NetServer.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="ScreenBuffer.h" />
@@ -159,7 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Console.cpp" />
-    <ClCompile Include="Net_Server.cpp" />
+    <ClCompile Include="NetServer.cpp" />
     <ClCompile Include="ScreenBuffer.cpp" />
     <ClCompile Include="ServerManager.cpp" />
     <ClCompile Include="StarServer.cpp" />

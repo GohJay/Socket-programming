@@ -1,6 +1,6 @@
 #ifndef __SERVERMANAGER__H_
 #define __SERVERMANAGER__H_
-#include "Net_Server.h"
+#include "NetServer.h"
 
 class ServerManager
 {
@@ -13,7 +13,7 @@ public:
 private:
 	void PrintInfo();
 private:
-	Net_Server* _server;
+	NetServer* _server;
 	static ServerManager _instance;
 };
 
