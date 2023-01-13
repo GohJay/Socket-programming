@@ -57,9 +57,6 @@
     <ClInclude Include="..\Common\Logger.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\STLWrapper.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="..\Lib\Network\include\RingBuffer.h">
       <Filter>Lib</Filter>
     </ClInclude>
