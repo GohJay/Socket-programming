@@ -4,8 +4,8 @@
 #include "../Common/Protocol.h"
 #include "../Common/ObjectPool.h"
 #include "../Common/Logger.h"
-#include "../Common/STLWrapper.h"
 #include "../Lib/Network/include/SerializationBuffer.h"
+#include <unordered_map>
 #include <queue>
 
 class GameServer
@@ -54,14 +54,14 @@ private:
 	bool PacketProc_Attack3(SESSION* session, Jay::SerializationBuffer* cs_packet);
 	bool PacketProc_Sync(SESSION* session, Jay::SerializationBuffer* cs_packet);
 	bool PacketProc_Echo(SESSION* session, Jay::SerializationBuffer* cs_packet);
-private:
-	HashMap<DWORD64, SESSION*> _sessionMap;
+private:	
+	std::unordered_map<DWORD64, SESSION*> _sessionMap;
 	Jay::ObjectPool<SESSION> _sessionPool;
 	std::queue<SESSION*> _gcQueue;
-	HashMap<DWORD64, CHARACTER*> _characterMap;
+	std::unordered_map<DWORD64, CHARACTER*> _characterMap;
 	Jay::ObjectPool<CHARACTER> _characterPool;
 	Jay::ObjectPool<Jay::SerializationBuffer> _packetPool;
-	List<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+	std::list<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
 	SOCKET _listenSocket;
 	int _listenPort;
 	int _keySessionID;

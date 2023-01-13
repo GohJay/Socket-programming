@@ -9,8 +9,10 @@
 
 extern bool g_Shutdown;
 ServerManager ServerManager::_instance;
+
 ServerManager::ServerManager() : _controlMode(false), _monitoringFlag(false), _loopCount(0), _frameCount(0), _accumtime(0), _monitoringTime(0)
 {
+	LoadData();
 	Init();
 }
 ServerManager::~ServerManager()
@@ -81,18 +83,6 @@ void ServerManager::Control()
 		{
 			_monitoringFlag = !_monitoringFlag;
 		}
-
-		if ((controlKey == L'r' || controlKey == L'R') && _controlMode)
-		{
-			Jay::ConfigParser confParser;
-			confParser.LoadFile(L"Config.cnf");
-
-			int logLevel;
-			confParser.GetValue(L"SERVER", L"LOG", &logLevel);
-
-			Jay::Logger::SetLogLevel(logLevel);
-			wprintf_s(L"Succeed Reload LogLevel [%d] . . . \n", logLevel);
-		}
 	}
 }
 void ServerManager::Monitor()
@@ -118,8 +108,8 @@ Sync Message Count: %d\n\
 Unknown Message Count: %d\n\
 \n====================================\n"
 			, _frameCount, _loopCount
-			, _server._sessionMap.Size()
-			, _server._characterMap.Size()
+			, _server._sessionMap.size()
+			, _server._characterMap.size()
 			, _networkProcTime
 			, _logicProcTime
 			, _cleanupProcTime
@@ -151,8 +141,8 @@ Unknown Message Count: %d\n\
 \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
 			, stTime.tm_year + 1900, stTime.tm_mon + 1, stTime.tm_mday, stTime.tm_hour, stTime.tm_min, stTime.tm_sec
 			, _frameCount, _loopCount
-			, _server._sessionMap.Size()
-			, _server._characterMap.Size()
+			, _server._sessionMap.size()
+			, _server._characterMap.size()
 			, _networkProcTime
 			, _logicProcTime
 			, _cleanupProcTime
@@ -168,18 +158,19 @@ Unknown Message Count: %d\n\
 	_cleanupProcTime = 0;
 	_monitoringTime = currentTime;
 }
-bool ServerManager::Init()
+bool ServerManager::LoadData()
 {
 	Jay::ConfigParser confParser;
 	if (!confParser.LoadFile(L"Config.cnf"))
 		return false;
 
-	int logLevel;
-	int serverPort;
-	confParser.GetValue(L"SERVER", L"LOG", &logLevel);
-	confParser.GetValue(L"SERVER", L"PORT", &serverPort);
-
-	Jay::Logger::SetLogLevel(logLevel);
-	_server.Listen(serverPort);
+	confParser.GetValue(L"SERVER", L"LOG", &_serverInfo.logLevel);
+	confParser.GetValue(L"SERVER", L"PORT", &_serverInfo.port);
+	return true;
+}
+bool ServerManager::Init()
+{
+	Jay::Logger::SetLogLevel(_serverInfo.logLevel);
+	_server.Listen(_serverInfo.port);
 	return true;
 }

@@ -4,6 +4,12 @@
 class ServerManager
 {
 private:
+	struct SERVER_INFO
+	{
+		int port;
+		int logLevel;
+	};
+private:
 	ServerManager();
 	~ServerManager();
 public:
@@ -12,9 +18,11 @@ public:
 	void Control();
 	void Monitor();
 private:
+	bool LoadData();
 	bool Init();
 private:
 	GameServer _server;
+	SERVER_INFO _serverInfo;
 	bool _controlMode;
 	bool _monitoringFlag;
 	int _loopCount;

@@ -35,7 +35,7 @@ void GameServer::Network()
 	userSockTable[socketCount++] = _listenSocket;
 	FD_SET(_listenSocket, &rfds);
 
-	for (auto iter = _sessionMap.Begin(); iter != _sessionMap.End(); ++iter)
+	for (auto iter = _sessionMap.begin(); iter != _sessionMap.end(); ++iter)
 	{
 		SESSION *session = iter->second;
 		userSockTable[socketCount++] = session->socket;
@@ -62,7 +62,7 @@ void GameServer::Network()
 void GameServer::Update()
 {
 	DWORD currentTime = timeGetTime();
-	for (auto iter = _characterMap.Begin(); iter != _characterMap.End(); ++iter)
+	for (auto iter = _characterMap.begin(); iter != _characterMap.end(); ++iter)
 	{
 		CHARACTER *character = iter->second;
 		SESSION *session = character->session;
@@ -248,7 +248,7 @@ void GameServer::AcceptProc()
 		CRASH;
 	}
 
-	if (_sessionMap.Size() >= dfMAX_USER)
+	if (_sessionMap.size() >= dfMAX_USER)
 	{
 		closesocket(client);
 		return;
@@ -258,7 +258,7 @@ void GameServer::AcceptProc()
 }
 void GameServer::RecvProc(SOCKET socket)
 {
-	auto iter = _sessionMap.Find(socket);
+	auto iter = _sessionMap.find(socket);
 	SESSION* session = iter->second;
 	if (!session->enable)
 		return;
@@ -346,7 +346,7 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 }
 void GameServer::SendProc(SOCKET socket)
 {
-	auto iter = _sessionMap.Find(socket);
+	auto iter = _sessionMap.find(socket);
 	SESSION* session = iter->second;
 	if (!session->enable)
 		return;
@@ -386,7 +386,7 @@ void GameServer::SendUnicast(SESSION * session, Jay::SerializationBuffer* sc_pac
 }
 void GameServer::SendBroadcast(SESSION * exclusion, Jay::SerializationBuffer* sc_packet)
 {
-	for (auto iter = _sessionMap.Begin(); iter != _sessionMap.End(); ++iter)
+	for (auto iter = _sessionMap.begin(); iter != _sessionMap.end(); ++iter)
 	{
 		SESSION *session = iter->second;
 		if (session != exclusion)
@@ -396,7 +396,7 @@ void GameServer::SendBroadcast(SESSION * exclusion, Jay::SerializationBuffer* sc
 void GameServer::SendSectorOne(SESSION * exclusion, Jay::SerializationBuffer * sc_packet, int sectorX, int sectorY)
 {
 	auto sectorList = &_sector[sectorY][sectorX];
-	for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+	for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 	{
 		SESSION* session = (*iter)->session;
 		if (session != exclusion)
@@ -405,7 +405,7 @@ void GameServer::SendSectorOne(SESSION * exclusion, Jay::SerializationBuffer * s
 }
 void GameServer::SendSectorAround(SESSION * session, Jay::SerializationBuffer * sc_packet, bool sendMe)
 {
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER *character = iter->second;
 	SESSION *exclusion = (sendMe == false) ? session : nullptr;
 
@@ -426,18 +426,18 @@ void GameServer::Disable(SESSION * session)
 }
 void GameServer::DestroyAll()
 {
-	for (auto iter = _sessionMap.Begin(); iter != _sessionMap.End();)
+	for (auto iter = _sessionMap.begin(); iter != _sessionMap.end();)
 	{
 		SESSION *session = iter->second;
-		CHARACTER *character = _characterMap.Find(session->socket)->second;
+		CHARACTER *character = _characterMap.find(session->socket)->second;
 
 		RemoveCharacter_Sector(character);
-		_characterMap.Remove(session->socket);
+		_characterMap.erase(session->socket);
 		_characterPool.Free(character);
 
 		closesocket(session->socket);
 		_sessionPool.Free(session);
-		iter = _sessionMap.Erase(iter);
+		iter = _sessionMap.erase(iter);
 	}
 	closesocket(_listenSocket);
 }
@@ -452,7 +452,7 @@ SESSION * GameServer::CreateSession(SOCKET socket, SOCKADDR_IN * socketAddr)
 	new_session->lastRecvTime = timeGetTime();
 	new_session->recvQ.ClearBuffer();
 	new_session->sendQ.ClearBuffer();
-	_sessionMap.Insert(new_session->socket, new_session);
+	_sessionMap.insert({ new_session->socket, new_session });
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Connected IP: %s, Port: %d, ID: %d", __FUNCTIONW__
 		, new_session->ip, new_session->port, new_session->sessionID);
 	CreateCharacter(new_session);
@@ -460,13 +460,13 @@ SESSION * GameServer::CreateSession(SOCKET socket, SOCKADDR_IN * socketAddr)
 }
 void GameServer::DisconnectSession(SOCKET socket)
 {
-	auto iter = _characterMap.Find(socket);
+	auto iter = _characterMap.find(socket);
 	CHARACTER* character = iter->second;
 	SESSION* session = character->session;
 	DestroyCharacter(character);
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Disconnect - sessionID: %d, IP: %s, Port: %d", __FUNCTIONW__
 		, session->sessionID, session->ip, session->port);
-	_sessionMap.Remove(session->socket);
+	_sessionMap.erase(session->socket);
 	closesocket(session->socket);
 	_sessionPool.Free(session);
 }
@@ -483,7 +483,7 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 	new_character->x = rand() % dfRANGE_MOVE_RIGHT;
 	new_character->y = rand() % dfRANGE_MOVE_BOTTOM;
 	AddCharacter_Sector(new_character);
-	_characterMap.Insert(session->socket, new_character);
+	_characterMap.insert({ session->socket, new_character });
 
 	Packet::MakeCreateMyCharacter(sc_packet
 		, new_character->sessionID
@@ -498,7 +498,7 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 	for (int i = 0; i < sectorAround.count; i++)
 	{
 		auto sectorList = &_sector[sectorAround.around[i].y][sectorAround.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			CHARACTER* existCharacter = *iter;
 			if (existCharacter == new_character)
@@ -552,7 +552,7 @@ void GameServer::DestroyCharacter(CHARACTER * character)
 	Packet::MakeDeleteCharacter(sc_packet, character->sessionID);
 	SendSectorAround(character->session, sc_packet, false);
 	RemoveCharacter_Sector(character);
-	_characterMap.Remove(character->session->socket);
+	_characterMap.erase(character->session->socket);
 	_characterPool.Free(character);
 	_packetPool.Free(sc_packet);
 }
@@ -585,11 +585,11 @@ void GameServer::AddCharacter_Sector(CHARACTER * character)
 {
 	character->curSector.x = character->x / dfSECTOR_SIZE_X;
 	character->curSector.y = character->y / dfSECTOR_SIZE_Y;
-	_sector[character->curSector.y][character->curSector.x].Insert(character);
+	_sector[character->curSector.y][character->curSector.x].push_back(character);
 }
 void GameServer::RemoveCharacter_Sector(CHARACTER * character)
 {
-	_sector[character->curSector.y][character->curSector.x].Remove(character);
+	_sector[character->curSector.y][character->curSector.x].remove(character);
 	character->oldSector.x = character->curSector.x;
 	character->oldSector.y = character->curSector.y;
 }
@@ -704,7 +704,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	for (int i = 0; i < removeSector.count; i++)
 	{
 		auto *sectorList = &_sector[removeSector.around[i].y][removeSector.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			Packet::MakeDeleteCharacter(sc_packet, (*iter)->sessionID);
 			SendUnicast(character->session, sc_packet);
@@ -744,7 +744,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	for (int i = 0; i < addSector.count; i++)
 	{
 		auto sectorList = &_sector[addSector.around[i].y][addSector.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			CHARACTER* existCharacter = *iter;
 			if (existCharacter == character)
@@ -837,7 +837,7 @@ bool GameServer::CollisionCheck_Attack3(CHARACTER * attacker, CHARACTER * target
 bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 	
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart before - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
@@ -895,7 +895,7 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop before - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
@@ -953,7 +953,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack1 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
@@ -973,7 +973,7 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 	for (int i = 0; !find && i < sectorAround.count; i++)
 	{
 		auto sectorList = &_sector[sectorAround.around[i].y][sectorAround.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			CHARACTER* target_character = *iter;
 			if (target_character->sessionID == character->sessionID)
@@ -996,7 +996,7 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack2 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
@@ -1016,7 +1016,7 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 	for (int i = 0; !find && i < sectorAround.count; i++)
 	{
 		auto sectorList = &_sector[sectorAround.around[i].y][sectorAround.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			CHARACTER* target_character = *iter;
 			if (target_character->sessionID == character->sessionID)
@@ -1039,7 +1039,7 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack3 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
@@ -1059,7 +1059,7 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 	for (int i = 0; !find && i < sectorAround.count; i++)
 	{
 		auto sectorList = &_sector[sectorAround.around[i].y][sectorAround.around[i].x];
-		for (auto iter = sectorList->Begin(); iter != sectorList->End(); ++iter)
+		for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 		{
 			CHARACTER* target_character = *iter;
 			if (target_character->sessionID == character->sessionID)
@@ -1082,7 +1082,7 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 bool GameServer::PacketProc_Sync(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
-	auto iter = _characterMap.Find(session->socket);
+	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	unsigned short x;
