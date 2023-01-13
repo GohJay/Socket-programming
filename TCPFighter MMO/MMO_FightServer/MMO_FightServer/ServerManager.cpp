@@ -90,7 +90,7 @@ void ServerManager::Control()
 			int logLevel;
 			confParser.GetValue(L"SERVER", L"LOG", &logLevel);
 
-			Jay::Logger::GetInstance()->SetLogLevel(logLevel);
+			Jay::Logger::SetLogLevel(logLevel);
 			wprintf_s(L"Succeed Reload LogLevel [%d] . . . \n", logLevel);
 		}
 	}
@@ -104,7 +104,7 @@ void ServerManager::Monitor()
 	if (_frameCount != dfFRAME)
 	{
 		// 모니터링 정보 파일 로그 출력
-		Jay::Logger::GetInstance()->WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"\n\
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"\n\
 Frame: %d, Loop/sec: %d\n\
 ------------------------------------\n\
 Session Count: %d\n\
@@ -179,7 +179,7 @@ bool ServerManager::Init()
 	confParser.GetValue(L"SERVER", L"LOG", &logLevel);
 	confParser.GetValue(L"SERVER", L"PORT", &serverPort);
 
-	Jay::Logger::GetInstance()->SetLogLevel(logLevel);
+	Jay::Logger::SetLogLevel(logLevel);
 	_server.Listen(serverPort);
 	return true;
 }

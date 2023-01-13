@@ -62,7 +62,6 @@ private:
 	Jay::ObjectPool<CHARACTER> _characterPool;
 	Jay::ObjectPool<Jay::SerializationBuffer> _packetPool;
 	List<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
-	Jay::Logger* _log;
 	SOCKET _listenSocket;
 	int _listenPort;
 	int _keySessionID;

@@ -13,10 +13,9 @@ GameServer::GameServer() : _listenSocket(INVALID_SOCKET), _keySessionID(0), _ses
 	int status = WSAStartup(MAKEWORD(2, 2), &ws);
 	if (status != 0)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed WSAStartup: %d", __FUNCTIONW__, status);
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed WSAStartup: %d", __FUNCTIONW__, status);
 		CRASH;
 	}
-	_log = Jay::Logger::GetInstance();
 }
 GameServer::~GameServer()
 {
@@ -156,7 +155,7 @@ void GameServer::Listen(int port)
 	_listenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (_listenSocket == INVALID_SOCKET)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed socket: %d", __FUNCTIONW__, WSAGetLastError());
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed socket: %d", __FUNCTIONW__, WSAGetLastError());
 		return;
 	}
 
@@ -166,7 +165,7 @@ void GameServer::Listen(int port)
 	int result = setsockopt(_listenSocket, SOL_SOCKET, SO_LINGER, (char*)&so_linger, sizeof(so_linger));
 	if (result == SOCKET_ERROR)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed setsockopt linger: %d", __FUNCTIONW__, WSAGetLastError());
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed setsockopt linger: %d", __FUNCTIONW__, WSAGetLastError());
 		closesocket(_listenSocket);
 		return;
 	}
@@ -175,7 +174,7 @@ void GameServer::Listen(int port)
 	result = ioctlsocket(_listenSocket, FIONBIO, &nonBlockingMode);
 	if (result == SOCKET_ERROR)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed ioctlsocket: %d", __FUNCTIONW__, WSAGetLastError());
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed ioctlsocket: %d", __FUNCTIONW__, WSAGetLastError());
 		closesocket(_listenSocket);
 		return;
 	}
@@ -187,7 +186,7 @@ void GameServer::Listen(int port)
 	result = bind(_listenSocket, (SOCKADDR*)&tListenAddr, sizeof(tListenAddr));
 	if (result == SOCKET_ERROR)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed bind: %d", __FUNCTIONW__, WSAGetLastError());
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed bind: %d", __FUNCTIONW__, WSAGetLastError());
 		closesocket(_listenSocket);
 		return;
 	}
@@ -195,11 +194,11 @@ void GameServer::Listen(int port)
 	result = listen(_listenSocket, SOMAXCONN);
 	if (result == SOCKET_ERROR)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed listen: %d", __FUNCTIONW__, WSAGetLastError());
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed listen: %d", __FUNCTIONW__, WSAGetLastError());
 		closesocket(_listenSocket);
 		return;
 	}
-	_log->WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"%s() Listen port: %d", __FUNCTIONW__, port);
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"%s() Listen port: %d", __FUNCTIONW__, port);
 }
 void GameServer::SelectSocket(SOCKET * userSockTable, FD_SET * readset, FD_SET * writeset)
 {
@@ -279,7 +278,7 @@ void GameServer::RecvProc(SOCKET socket)
 	case SOCKET_ERROR:
 		err = WSAGetLastError();
 		if (err != WSAECONNRESET && err != WSAECONNABORTED)
-			_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recv - sessionID: %d, error: %d", __FUNCTIONW__, session->sessionID, err);
+			Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recv - sessionID: %d, error: %d", __FUNCTIONW__, session->sessionID, err);
 	case 0:
 		Disable(session);
 		return;
@@ -287,12 +286,12 @@ void GameServer::RecvProc(SOCKET socket)
 		break;
 	}
 	session->recvQ.MoveRear(len);
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() recv - sessionID: %d, size: %d", __FUNCTIONW__, session->sessionID, len);
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() recv - sessionID: %d, size: %d", __FUNCTIONW__, session->sessionID, len);
 	
 	for (;;)
 	{
 		int ret = CompleteRecvPacket(session);
-		if (ret == 0)
+		if (ret == 1)
 			break;
 		else if (ret == -1)
 		{
@@ -303,15 +302,15 @@ void GameServer::RecvProc(SOCKET socket)
 }
 int GameServer::CompleteRecvPacket(SESSION * session)
 {
+	PACKET_HEADER header;
 	int headerSize = sizeof(PACKET_HEADER);
 	if (session->recvQ.GetUseSize() <= headerSize)
-		return 0;
+		return 1;
 
-	PACKET_HEADER header;
 	int ret = session->recvQ.Peek((char*)&header, headerSize);
 	if (ret != headerSize)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recvQ peek - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, headerSize, ret);
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recvQ peek - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, headerSize, ret);
 		CRASH;
 	}
 
@@ -322,7 +321,7 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 	}
 
 	if (session->recvQ.GetUseSize() < headerSize + header.bySize)
-		return 0;
+		return 1;
 
 	session->recvQ.MoveFront(headerSize);
 
@@ -331,7 +330,7 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 	ret = session->recvQ.Dequeue(packet->GetBufferPtr(), header.bySize);
 	if (ret != header.bySize)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recvQ dequeue - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, header.bySize, ret);
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed recvQ dequeue - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, header.bySize, ret);
 		CRASH;
 	}
 	packet->MoveRear(ret);
@@ -343,7 +342,7 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 	}
 	_packetPool.Free(packet);
 
-	return 1;
+	return 0;
 }
 void GameServer::SendProc(SOCKET socket)
 {
@@ -365,14 +364,14 @@ void GameServer::SendProc(SOCKET socket)
 		case WSAECONNRESET:
 			break;
 		default:
-			_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed send - sessionID: %d, error: %d", __FUNCTIONW__, session->sessionID, err);
+			Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed send - sessionID: %d, error: %d", __FUNCTIONW__, session->sessionID, err);
 			break;
 		}
 		Disable(session);
 		return;
 	}
 	session->sendQ.MoveFront(ret);
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() send - sessionID: %d, size: %d", __FUNCTIONW__, session->sessionID, ret);
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() send - sessionID: %d, size: %d", __FUNCTIONW__, session->sessionID, ret);
 }
 void GameServer::SendUnicast(SESSION * session, Jay::SerializationBuffer* sc_packet)
 {
@@ -380,7 +379,7 @@ void GameServer::SendUnicast(SESSION * session, Jay::SerializationBuffer* sc_pac
 	int ret = session->sendQ.Enqueue(sc_packet->GetBufferPtr(), size);
 	if (ret != size)
 	{
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed sendQ enqueue - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, size, ret);
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() Failed sendQ enqueue - sessionID: %d, size: %d, ret: %d", __FUNCTIONW__, session->sessionID, size, ret);
 		Disable(session);
 		return;
 	}
@@ -447,14 +446,14 @@ SESSION * GameServer::CreateSession(SOCKET socket, SOCKADDR_IN * socketAddr)
 	SESSION *new_session = _sessionPool.Alloc();
 	new_session->enable = true;
 	new_session->socket = socket;
-	InetNtop(AF_INET, &socketAddr->sin_addr, new_session->ip, sizeof(new_session->ip));
+	InetNtop(AF_INET, &socketAddr->sin_addr, new_session->ip, sizeof(new_session->ip) / 2);
 	new_session->port = ntohs(socketAddr->sin_port);
 	new_session->sessionID = ++_keySessionID;
 	new_session->lastRecvTime = timeGetTime();
 	new_session->recvQ.ClearBuffer();
 	new_session->sendQ.ClearBuffer();
 	_sessionMap.Insert(new_session->socket, new_session);
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Connected IP: %s, Port: %d, ID: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Connected IP: %s, Port: %d, ID: %d", __FUNCTIONW__
 		, new_session->ip, new_session->port, new_session->sessionID);
 	CreateCharacter(new_session);
 	return new_session;
@@ -465,7 +464,7 @@ void GameServer::DisconnectSession(SOCKET socket)
 	CHARACTER* character = iter->second;
 	SESSION* session = character->session;
 	DestroyCharacter(character);
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Disconnect - sessionID: %d, IP: %s, Port: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Disconnect - sessionID: %d, IP: %s, Port: %d", __FUNCTIONW__
 		, session->sessionID, session->ip, session->port);
 	_sessionMap.Remove(session->socket);
 	closesocket(session->socket);
@@ -559,7 +558,7 @@ void GameServer::DestroyCharacter(CHARACTER * character)
 }
 bool GameServer::PacketProc(SESSION * session, Jay::SerializationBuffer* cs_packet, WORD type)
 {
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() PacketProc [%d] - sessionID: %d", __FUNCTIONW__, type, session->sessionID);
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() PacketProc [%d] - sessionID: %d", __FUNCTIONW__, type, session->sessionID);
 	switch (type)
 	{
 	case dfPACKET_CS_MOVE_START:
@@ -840,19 +839,19 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.Find(session->socket);
 	CHARACTER* character = iter->second;
-
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart before - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
+	
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart before - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y, character->curSector.x, character->curSector.y);
 
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
-
+	
 	if (abs(character->x - x) > dfERROR_RANGE || abs(character->y - y) > dfERROR_RANGE)
 	{
 		_syncErrorCount++;
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStart Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStart Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
 			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
 
 		Packet::MakeSync(sc_packet, character->sessionID, character->x, character->y);
@@ -887,7 +886,7 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	if (UpdateCharacter_Sector(character))
 		UpdatePacket_Sector(character);
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart after - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart after - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y, character->curSector.x, character->curSector.y);
 
 	_packetPool.Free(sc_packet);
@@ -899,7 +898,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	auto iter = _characterMap.Find(session->socket);
 	CHARACTER* character = iter->second;
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop before - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop before - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 	
 	unsigned char direction;
@@ -910,7 +909,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	if (abs(character->x - x) > dfERROR_RANGE || abs(character->y - y) > dfERROR_RANGE)
 	{
 		_syncErrorCount++;
-		_log->WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStop Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
+		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStop Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
 			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
 
 		Packet::MakeSync(sc_packet, character->sessionID, character->x, character->y);
@@ -945,7 +944,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	Packet::MakeMoveStop(sc_packet, character->sessionID, (char)character->direction, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop after - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop after - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
 	_packetPool.Free(sc_packet);
@@ -957,7 +956,7 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 	auto iter = _characterMap.Find(session->socket);
 	CHARACTER* character = iter->second;
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack1 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack1 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
 	unsigned char direction;
@@ -1000,7 +999,7 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 	auto iter = _characterMap.Find(session->socket);
 	CHARACTER* character = iter->second;
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack2 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack2 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
 	unsigned char direction;
@@ -1043,7 +1042,7 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 	auto iter = _characterMap.Find(session->socket);
 	CHARACTER* character = iter->second;
 
-	_log->WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack3 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
+	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack3 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
 	unsigned char direction;

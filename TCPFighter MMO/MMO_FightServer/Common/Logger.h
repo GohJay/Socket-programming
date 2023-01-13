@@ -10,19 +10,30 @@ namespace Jay
 {
 	class Logger
 	{
+		/**
+		* @file		Logger.h
+		* @brief	File Logger Class
+		* @details	파일 로그 출력용 클래스
+		* @author   고재현
+		* @date		2022-12-24
+		* @version  1.0.2
+		**/
 	private:
 		Logger();
 		~Logger();
 	public:
-		static Logger* GetInstance();
-		static void ReleaseInstance();
-	public:
-		void SetLogLevel(int logLevel);
-		void WriteLog(const wchar_t * tag, int logLevel, const wchar_t * fmt, ...);
+		static void SetLogLevel(int logLevel);
+		static void SetLogPath(const wchar_t* logPath);
+		static void WriteLog(const wchar_t* type, int logLevel, const wchar_t* fmt, ...);
+		static void WriteHex(const wchar_t* type, int logLevel, const wchar_t* log, BYTE* byte, int byteLen);
 	private:
-		wchar_t _logPath[MAX_PATH];
-		int _logLevel;
-		static Logger* _instance;
+		static void WriteProc(const wchar_t* type, int logLevel, const wchar_t* buffer, bool truncated);
+	private:
+		static DWORD _logIndex;
+		static int _logLevel;
+		static wchar_t _logPath[MAX_PATH];
+		static SRWLOCK _logLock;
+		static Logger _instance;
 	};
 }
 
