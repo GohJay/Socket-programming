@@ -16,6 +16,9 @@
     <Filter Include="Network">
       <UniqueIdentifier>{b0d762bb-6d0e-4974-95bc-68a64634677a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{0bf7dcfc-a952-4e07-933e-88d128575457}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -36,9 +39,6 @@
     <ClInclude Include="Object.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\Protocol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -56,6 +56,12 @@
     </ClInclude>
     <ClInclude Include="..\Network\include\SerializationBuffer.h">
       <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Protocol.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\List.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

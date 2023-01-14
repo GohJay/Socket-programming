@@ -15,6 +15,7 @@ int main()
 		ServerManager::GetInstance()->Control();
 		ServerManager::GetInstance()->Monitor();
 	}
+
 	wprintf_s(L"Press any key to continue . . . ");
 	_getwch();
 

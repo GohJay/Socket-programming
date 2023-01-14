@@ -24,6 +24,9 @@ GameServer::~GameServer()
 }
 void GameServer::Network()
 {
+	//--------------------------------------------------------------------
+	// 네트워크 송수신 처리
+	//--------------------------------------------------------------------
 	SOCKET userSockTable[FD_SETSIZE];
 	fd_set rfds;
 	fd_set sfds;
@@ -61,6 +64,9 @@ void GameServer::Network()
 }
 void GameServer::Update()
 {
+	//--------------------------------------------------------------------
+	// 게임 로직 업데이트
+	//--------------------------------------------------------------------
 	DWORD currentTime = timeGetTime();
 	for (auto iter = _characterMap.begin(); iter != _characterMap.end(); ++iter)
 	{
@@ -69,18 +75,27 @@ void GameServer::Update()
 		if (!session->enable)
 			continue;
 
+		//--------------------------------------------------------------------
+		// 캐릭터 사망 처리
+		//--------------------------------------------------------------------
 		if (character->hp == 0)
 		{
 			Disable(session);
 			continue;
 		}
 
+		//--------------------------------------------------------------------
+		// 세션 타임아웃 처리
+		//--------------------------------------------------------------------
 		if (currentTime - session->lastRecvTime > dfNETWORK_PACKET_RECV_TIMEOUT)
 		{
 			Disable(session);
 			continue;
 		}
 
+		//--------------------------------------------------------------------
+		// 캐릭터 동작에 따른 처리
+		//--------------------------------------------------------------------
 		unsigned short dx = dfSPEED_PLAYER_X;
 		unsigned short dy = dfSPEED_PLAYER_Y;
 		switch (character->action)
@@ -133,6 +148,9 @@ void GameServer::Update()
 			break;
 		}
 
+		//--------------------------------------------------------------------
+		// 캐릭터 동작이 이동인 경우 섹터 업데이트 처리
+		//--------------------------------------------------------------------
 		if (character->action >= dfPACKET_MOVE_DIR_LL &&
 			character->action <= dfPACKET_MOVE_DIR_LD)
 		{
@@ -143,6 +161,9 @@ void GameServer::Update()
 }
 void GameServer::Cleanup()
 {
+	//--------------------------------------------------------------------
+	// 비활성화된 세션 일괄 정리
+	//--------------------------------------------------------------------
 	while (_gcQueue.size() > 0)
 	{
 		SESSION* session = _gcQueue.front();
@@ -237,6 +258,9 @@ void GameServer::SelectSocket(SOCKET * userSockTable, FD_SET * readset, FD_SET *
 }
 void GameServer::AcceptProc()
 {
+	//--------------------------------------------------------------------
+	// accept 처리
+	//--------------------------------------------------------------------
 	SOCKADDR_IN clientAddr = {};
 	int clientSize = sizeof(clientAddr);
 	SOCKET client = accept(_listenSocket, (SOCKADDR*)&clientAddr, &clientSize);
@@ -248,12 +272,18 @@ void GameServer::AcceptProc()
 		CRASH;
 	}
 
+	//--------------------------------------------------------------------
+	// 동시접속자 수 확인. 최대치를 초과할 경우 연결 종료
+	//--------------------------------------------------------------------
 	if (_sessionMap.size() >= dfMAX_USER)
 	{
 		closesocket(client);
 		return;
 	}
 
+	//--------------------------------------------------------------------
+	// 신규 접속자의 세션 생성
+	//--------------------------------------------------------------------
 	CreateSession(client, &clientAddr);
 }
 void GameServer::RecvProc(SOCKET socket)
@@ -263,14 +293,21 @@ void GameServer::RecvProc(SOCKET socket)
 	if (!session->enable)
 		return;
 
+	//--------------------------------------------------------------------------------------
+	// 수신용 링버퍼의 사이즈 구하기
+	//--------------------------------------------------------------------------------------
 	int size = session->recvQ.DirectEnqueueSize();
 	if (size <= 0)
 	{
+		// 여유공간이 전혀 없다는 것은 링버퍼에 담긴 메시지에 컨텐츠 부에서 파싱 할 수 없는 오류가 있는 것. 연결을 끊는다.
 		Disable(session);
 		return;
 	}
 	session->lastRecvTime = timeGetTime();
-		
+	
+	//--------------------------------------------------------------------------------------
+	// recv 처리
+	//--------------------------------------------------------------------------------------
 	int err;
 	int len = recv(session->socket, session->recvQ.GetRearBufferPtr(), size, 0);
 	switch (len)
@@ -287,7 +324,10 @@ void GameServer::RecvProc(SOCKET socket)
 	}
 	session->recvQ.MoveRear(len);
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() recv - sessionID: %d, size: %d", __FUNCTIONW__, session->sessionID, len);
-	
+
+	//--------------------------------------------------------------------------------------
+	// 패킷 처리 시작
+	//--------------------------------------------------------------------------------------
 	for (;;)
 	{
 		int ret = CompleteRecvPacket(session);
@@ -302,11 +342,17 @@ void GameServer::RecvProc(SOCKET socket)
 }
 int GameServer::CompleteRecvPacket(SESSION * session)
 {
+	//--------------------------------------------------------------------
+	// 수신용 링버퍼의 사이즈가 Header 크기보다 큰지 확인
+	//--------------------------------------------------------------------
 	PACKET_HEADER header;
 	int headerSize = sizeof(PACKET_HEADER);
 	if (session->recvQ.GetUseSize() <= headerSize)
 		return 1;
 
+	//--------------------------------------------------------------------
+	// 수신용 링버퍼에서 Header 를 Peek 하여 확인
+	//--------------------------------------------------------------------
 	int ret = session->recvQ.Peek((char*)&header, headerSize);
 	if (ret != headerSize)
 	{
@@ -314,17 +360,26 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 		CRASH;
 	}
 
+	//--------------------------------------------------------------------
+	// 패킷 코드 진위 여부 확인
+	//--------------------------------------------------------------------
 	if (header.byCode != dfPACKET_CODE)
 	{
 		_unknownPacketCount++;
 		return -1;
 	}
 
+	//--------------------------------------------------------------------
+	// 수신용 링버퍼의 사이즈가 Header + Payload 크기 만큼 있는지 확인
+	//--------------------------------------------------------------------
 	if (session->recvQ.GetUseSize() < headerSize + header.bySize)
 		return 1;
 
 	session->recvQ.MoveFront(headerSize);
 
+	//--------------------------------------------------------------------
+	// 직렬화 버퍼에 Payload 담기
+	//--------------------------------------------------------------------
 	Jay::SerializationBuffer* packet = _packetPool.Alloc();
 	packet->ClearBuffer();
 	ret = session->recvQ.Dequeue(packet->GetBufferPtr(), header.bySize);
@@ -334,7 +389,10 @@ int GameServer::CompleteRecvPacket(SESSION * session)
 		CRASH;
 	}
 	packet->MoveRear(ret);
-	
+
+	//--------------------------------------------------------------------
+	// 패킷 처리
+	//--------------------------------------------------------------------
 	if (!PacketProc(session, packet, header.byType))
 	{
 		_packetPool.Free(packet);
@@ -350,8 +408,15 @@ void GameServer::SendProc(SOCKET socket)
 	SESSION* session = iter->second;
 	if (!session->enable)
 		return;
-	
+
+	//--------------------------------------------------------------------------------------
+	// 송신용 링버퍼의 사이즈 구하기
+	//--------------------------------------------------------------------------------------
 	int size = session->sendQ.DirectDequeueSize();
+
+	//--------------------------------------------------------------------------------------
+	// send 처리
+	//--------------------------------------------------------------------------------------
 	int ret = send(session->socket, session->sendQ.GetFrontBufferPtr(), size, 0);
 	if (ret == SOCKET_ERROR)
 	{
@@ -375,6 +440,9 @@ void GameServer::SendProc(SOCKET socket)
 }
 void GameServer::SendUnicast(SESSION * session, Jay::SerializationBuffer* sc_packet)
 {
+	//--------------------------------------------------------------------
+	// 특정 세션의 송신용 링버퍼에 패킷 담기
+	//--------------------------------------------------------------------
 	int size = sc_packet->GetUseSize();
 	int ret = session->sendQ.Enqueue(sc_packet->GetBufferPtr(), size);
 	if (ret != size)
@@ -386,6 +454,9 @@ void GameServer::SendUnicast(SESSION * session, Jay::SerializationBuffer* sc_pac
 }
 void GameServer::SendBroadcast(SESSION * exclusion, Jay::SerializationBuffer* sc_packet)
 {
+	//--------------------------------------------------------------------
+	// 모든 세션의 송신용 링버퍼에 패킷 담기
+	//--------------------------------------------------------------------
 	for (auto iter = _sessionMap.begin(); iter != _sessionMap.end(); ++iter)
 	{
 		SESSION *session = iter->second;
@@ -395,6 +466,9 @@ void GameServer::SendBroadcast(SESSION * exclusion, Jay::SerializationBuffer* sc
 }
 void GameServer::SendSectorOne(SESSION * exclusion, Jay::SerializationBuffer * sc_packet, int sectorX, int sectorY)
 {
+	//--------------------------------------------------------------------
+	// 특정 섹터에 있는 세션들의 송신용 링버퍼에 패킷 담기
+	//--------------------------------------------------------------------
 	auto sectorList = &_sector[sectorY][sectorX];
 	for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 	{
@@ -405,6 +479,9 @@ void GameServer::SendSectorOne(SESSION * exclusion, Jay::SerializationBuffer * s
 }
 void GameServer::SendSectorAround(SESSION * session, Jay::SerializationBuffer * sc_packet, bool sendMe)
 {
+	//--------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 세션들의 송신용 링버퍼에 패킷 담기
+	//--------------------------------------------------------------------
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER *character = iter->second;
 	SESSION *exclusion = (sendMe == false) ? session : nullptr;
@@ -418,6 +495,9 @@ void GameServer::SendSectorAround(SESSION * session, Jay::SerializationBuffer * 
 }
 void GameServer::Disable(SESSION * session)
 {
+	//--------------------------------------------------------------------
+	// 세션 비활성화
+	//--------------------------------------------------------------------
 	if (session->enable)
 	{
 		session->enable = false;
@@ -426,6 +506,9 @@ void GameServer::Disable(SESSION * session)
 }
 void GameServer::DestroyAll()
 {
+	//--------------------------------------------------------------------
+	// 모든 세션 정리
+	//--------------------------------------------------------------------
 	for (auto iter = _sessionMap.begin(); iter != _sessionMap.end();)
 	{
 		SESSION *session = iter->second;
@@ -443,6 +526,9 @@ void GameServer::DestroyAll()
 }
 SESSION * GameServer::CreateSession(SOCKET socket, SOCKADDR_IN * socketAddr)
 {
+	//--------------------------------------------------------------------
+	// 세션 생성
+	//--------------------------------------------------------------------
 	SESSION *new_session = _sessionPool.Alloc();
 	new_session->enable = true;
 	new_session->socket = socket;
@@ -460,6 +546,9 @@ SESSION * GameServer::CreateSession(SOCKET socket, SOCKADDR_IN * socketAddr)
 }
 void GameServer::DisconnectSession(SOCKET socket)
 {
+	//--------------------------------------------------------------------
+	// 세션 제거
+	//--------------------------------------------------------------------
 	auto iter = _characterMap.find(socket);
 	CHARACTER* character = iter->second;
 	SESSION* session = character->session;
@@ -472,9 +561,10 @@ void GameServer::DisconnectSession(SOCKET socket)
 }
 CHARACTER * GameServer::CreateCharacter(SESSION * session)
 {
-	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 생성
+	//--------------------------------------------------------------------------------------
 	CHARACTER *new_character = _characterPool.Alloc();
-
 	new_character->session = session;
 	new_character->sessionID = session->sessionID;
 	new_character->action = -1;
@@ -485,6 +575,16 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 	AddCharacter_Sector(new_character);
 	_characterMap.insert({ session->socket, new_character });
 
+	//--------------------------------------------------------------------------------------
+	// 1. 신규 캐릭터에게 - 신규 캐릭터의 생성 패킷
+	// 2. 신규 캐릭터에게 - 현재섹터에 존재하는 캐릭터들의 생성 및 이동 패킷
+	// 3. 현재섹터에 존재하는 캐릭터들에게 - 신규 캐릭터의 생성 패킷
+	//--------------------------------------------------------------------------------------
+	Jay::SerializationBuffer* sc_packet = _packetPool.Alloc();
+
+	//--------------------------------------------------------------------------------------
+	// 1. 신규 캐릭터에게 생성 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeCreateMyCharacter(sc_packet
 		, new_character->sessionID
 		, new_character->direction
@@ -493,6 +593,9 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 		, new_character->hp);
 	SendUnicast(session, sc_packet);
 
+	//--------------------------------------------------------------------------------------
+	// 2. 신규 캐릭터에게 현재섹터에 존재하는 캐릭터들의 생성 및 이동 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	SECTOR_AROUND sectorAround;
 	GetSectorAround(new_character->curSector.x, new_character->curSector.y, &sectorAround);
 	for (int i = 0; i < sectorAround.count; i++)
@@ -504,6 +607,7 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 			if (existCharacter == new_character)
 				continue;
 
+			// 기존 캐릭터의 생성 패킷 보내기
 			Packet::MakeCreateOtherCharacter(sc_packet
 				, existCharacter->sessionID
 				, existCharacter->direction
@@ -512,6 +616,7 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 				, existCharacter->hp);
 			SendUnicast(new_character->session, sc_packet);
 
+			// 기존 캐릭터가 이동하고 있었다면 이동 패킷 보내기
 			switch (existCharacter->action)
 			{
 			case dfPACKET_MOVE_DIR_LL:
@@ -535,6 +640,9 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 		}
 	}
 
+	//--------------------------------------------------------------------------------------
+	// 3. 현재섹터에 존재하는 캐릭터들에게 신규 캐릭터의 생성 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeCreateOtherCharacter(sc_packet
 		, new_character->sessionID
 		, new_character->direction
@@ -548,16 +656,26 @@ CHARACTER * GameServer::CreateCharacter(SESSION * session)
 }
 void GameServer::DestroyCharacter(CHARACTER * character)
 {
+	//--------------------------------------------------------------------
+	// 같은섹터에 존재하는 캐릭터들에게 해당 캐릭터의 제거 패킷 보내기
+	//--------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	Packet::MakeDeleteCharacter(sc_packet, character->sessionID);
 	SendSectorAround(character->session, sc_packet, false);
 	RemoveCharacter_Sector(character);
+
+	//--------------------------------------------------------------------
+	// 캐릭터 제거
+	//--------------------------------------------------------------------
 	_characterMap.erase(character->session->socket);
 	_characterPool.Free(character);
 	_packetPool.Free(sc_packet);
 }
 bool GameServer::PacketProc(SESSION * session, Jay::SerializationBuffer* cs_packet, WORD type)
 {
+	//--------------------------------------------------------------------
+	// 패킷 처리 시작
+	//--------------------------------------------------------------------
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() PacketProc [%d] - sessionID: %d", __FUNCTIONW__, type, session->sessionID);
 	switch (type)
 	{
@@ -583,18 +701,28 @@ bool GameServer::PacketProc(SESSION * session, Jay::SerializationBuffer* cs_pack
 }
 void GameServer::AddCharacter_Sector(CHARACTER * character)
 {
+	//--------------------------------------------------------------------
+	// 캐릭터의 현재 좌표로 섹터위치를 계산하여 해당 섹터에 추가
+	//--------------------------------------------------------------------
 	character->curSector.x = character->x / dfSECTOR_SIZE_X;
 	character->curSector.y = character->y / dfSECTOR_SIZE_Y;
 	_sector[character->curSector.y][character->curSector.x].push_back(character);
 }
 void GameServer::RemoveCharacter_Sector(CHARACTER * character)
 {
+	//--------------------------------------------------------------------
+	// 캐릭터의 현재 좌표로 섹터위치를 계산하여 해당 섹터에서 삭제
+	//--------------------------------------------------------------------
 	_sector[character->curSector.y][character->curSector.x].remove(character);
 	character->oldSector.x = character->curSector.x;
 	character->oldSector.y = character->curSector.y;
 }
 bool GameServer::UpdateCharacter_Sector(CHARACTER * character)
 {
+	//--------------------------------------------------------------------
+	// 현재 위치한 섹터에서 삭제
+	// 현재의 좌표로 섹터를 새로 계산하여 해당 섹터에 추가
+	//--------------------------------------------------------------------
 	int sectorX = character->x / dfSECTOR_SIZE_X;
 	int sectorY = character->y / dfSECTOR_SIZE_Y;
 	if (character->curSector.x == sectorX && character->curSector.y == sectorY)
@@ -606,6 +734,9 @@ bool GameServer::UpdateCharacter_Sector(CHARACTER * character)
 }
 void GameServer::GetSectorAround(int sectorX, int sectorY, SECTOR_AROUND * sectorAround)
 {
+	//--------------------------------------------------------------------
+	// 특정 좌표 기준으로 주변 영향권 섹터 얻기
+	//--------------------------------------------------------------------
 	sectorX--;
 	sectorY--;
 
@@ -628,6 +759,10 @@ void GameServer::GetSectorAround(int sectorX, int sectorY, SECTOR_AROUND * secto
 }
 void GameServer::GetUpdateSectorAround(CHARACTER * character, SECTOR_AROUND * removeSector, SECTOR_AROUND * addSector)
 {
+	//--------------------------------------------------------------------
+	// 섹터에서 섹터를 이동하였을 때 
+	// 섹터 영향권에서 빠진 섹터와 새로 추가된 섹터의 정보를 구하는 함수
+	//--------------------------------------------------------------------
 	SECTOR_AROUND oldSectorAround, curSectorAround;
 	GetSectorAround(character->oldSector.x, character->oldSector.y, &oldSectorAround);
 	GetSectorAround(character->curSector.x, character->curSector.y, &curSectorAround);
@@ -679,10 +814,10 @@ void GameServer::GetUpdateSectorAround(CHARACTER * character, SECTOR_AROUND * re
 void GameServer::UpdatePacket_Sector(CHARACTER * character)
 {
 	//--------------------------------------------------------------------------------------
-	// 1. 이전섹터에 존재하는 캐릭터들에게 - 이동하는 캐릭터의 삭제 메시지
-	// 2. 이동하는 캐릭터에게 - 이전섹터에 존재하는 캐릭터들의 삭제 메시지
-	// 3. 현재섹터에 존재하는 캐릭터들에게 - 이동하는 캐릭터의 생성 및 이동 메시지
-	// 4. 이동하는 캐릭터에게 - 현재섹터에 존재하는 캐릭터들의 생성 및 이동 메시지
+	// 1. 이전섹터에 존재하는 캐릭터들에게 - 이동하는 캐릭터의 삭제 패킷
+	// 2. 이동하는 캐릭터에게 - 이전섹터에 존재하는 캐릭터들의 삭제 패킷
+	// 3. 현재섹터에 존재하는 캐릭터들에게 - 이동하는 캐릭터의 생성 및 이동 패킷
+	// 4. 이동하는 캐릭터에게 - 현재섹터에 존재하는 캐릭터들의 생성 및 이동 패킷
 	//--------------------------------------------------------------------------------------
 	SECTOR_AROUND removeSector, addSector;
 	GetUpdateSectorAround(character, &removeSector, &addSector);
@@ -690,7 +825,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 
 	//--------------------------------------------------------------------------------------
-	// 1. removeSector에 이동하는 캐릭터의 삭제 메시지 보내기
+	// 1. removeSector에 이동하는 캐릭터의 삭제 패킷 보내기
 	//--------------------------------------------------------------------------------------
 	Packet::MakeDeleteCharacter(sc_packet, character->sessionID);
 	for (int i = 0; i < removeSector.count; i++)
@@ -699,7 +834,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	}
 
 	//--------------------------------------------------------------------------------------
-	// 2. 이동하는 캐릭터에게 removeSector 캐릭터들의 삭제 메시지 보내기
+	// 2. 이동하는 캐릭터에게 removeSector 캐릭터들의 삭제 패킷 보내기
 	//--------------------------------------------------------------------------------------
 	for (int i = 0; i < removeSector.count; i++)
 	{
@@ -712,7 +847,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	}
 
 	//--------------------------------------------------------------------------------------
-	// 3-1. addSector에 이동하는 캐릭터의 생성 메시지 보내기
+	// 3-1. addSector에 이동하는 캐릭터의 생성 패킷 보내기
 	//--------------------------------------------------------------------------------------
 	Packet::MakeCreateOtherCharacter(sc_packet
 		, character->sessionID
@@ -726,7 +861,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	}
 
 	//--------------------------------------------------------------------------------------
-	// 3-2. addSector에 이동하는 캐릭터의 이동 메시지 보내기
+	// 3-2. addSector에 이동하는 캐릭터의 이동 패킷 보내기
 	//--------------------------------------------------------------------------------------
 	Packet::MakeMoveStart(sc_packet
 		, character->sessionID
@@ -739,7 +874,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 	}
 	
 	//--------------------------------------------------------------------------------------
-	// 4. 이동하는 캐릭터에게 addSector 캐릭터들의 생성 및 이동 메시지 보내기
+	// 4. 이동하는 캐릭터에게 addSector 캐릭터들의 생성 및 이동 패킷 보내기
 	//--------------------------------------------------------------------------------------
 	for (int i = 0; i < addSector.count; i++)
 	{
@@ -750,7 +885,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 			if (existCharacter == character)
 				continue;
 			
-			// addSector 캐릭터의 생성 메시지 보내기
+			// addSector 캐릭터의 생성 패킷 보내기
 			Packet::MakeCreateOtherCharacter(sc_packet
 				, existCharacter->sessionID
 				, existCharacter->direction
@@ -759,7 +894,7 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 				, existCharacter->hp);
 			SendUnicast(character->session, sc_packet);
 
-			// addSector 캐릭터가 이동하고 있었다면 이동 메시지 보내기
+			// addSector 캐릭터가 이동하고 있었다면 이동 패킷 보내기
 			switch (existCharacter->action)
 			{
 			case dfPACKET_MOVE_DIR_LL:
@@ -787,6 +922,9 @@ void GameServer::UpdatePacket_Sector(CHARACTER * character)
 }
 bool GameServer::IsMovableCharacter(int x, int y)
 {
+	//--------------------------------------------------------------------
+	// 좌표 이동 가능여부 확인
+	//--------------------------------------------------------------------
 	if (x >= dfRANGE_MOVE_LEFT && x <= dfRANGE_MOVE_RIGHT &&  y >= dfRANGE_MOVE_TOP && y <= dfRANGE_MOVE_BOTTOM)
 		return true;
 
@@ -794,6 +932,9 @@ bool GameServer::IsMovableCharacter(int x, int y)
 }
 bool GameServer::CollisionCheck_Attack1(CHARACTER * attacker, CHARACTER * target)
 {
+	//--------------------------------------------------------------------
+	// 충돌 여부 확인 - 공격1
+	//--------------------------------------------------------------------
 	if (attacker->direction == dfPACKET_MOVE_DIR_LL && target->x < attacker->x && target->x >= attacker->x - dfATTACK1_RANGE_X)
 	{
 		if (abs(target->y - attacker->y) <= dfATTACK1_RANGE_Y)
@@ -808,6 +949,9 @@ bool GameServer::CollisionCheck_Attack1(CHARACTER * attacker, CHARACTER * target
 }
 bool GameServer::CollisionCheck_Attack2(CHARACTER * attacker, CHARACTER * target)
 {
+	//--------------------------------------------------------------------
+	// 충돌 여부 확인 - 공격2
+	//--------------------------------------------------------------------
 	if (attacker->direction == dfPACKET_MOVE_DIR_LL && target->x < attacker->x && target->x >= attacker->x - dfATTACK2_RANGE_X)
 	{
 		if (abs(target->y - attacker->y) <= dfATTACK2_RANGE_Y)
@@ -822,6 +966,9 @@ bool GameServer::CollisionCheck_Attack2(CHARACTER * attacker, CHARACTER * target
 }
 bool GameServer::CollisionCheck_Attack3(CHARACTER * attacker, CHARACTER * target)
 {
+	//--------------------------------------------------------------------
+	// 충돌 여부 확인 - 공격3
+	//--------------------------------------------------------------------
 	if (attacker->direction == dfPACKET_MOVE_DIR_LL && target->x < attacker->x && target->x >= attacker->x - dfATTACK3_RANGE_X)
 	{
 		if (abs(target->y - attacker->y) <= dfATTACK3_RANGE_Y)
@@ -836,6 +983,9 @@ bool GameServer::CollisionCheck_Attack3(CHARACTER * attacker, CHARACTER * target
 }
 bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 이동 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
@@ -843,17 +993,26 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart before - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y, character->curSector.x, character->curSector.y);
 
+	//--------------------------------------------------------------------------------------
+	// 패킷 역직렬화
+	//--------------------------------------------------------------------------------------
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
-	
+
+	//--------------------------------------------------------------------------------------
+	// 서버의 위치와 받은 패킷의 위치 값이 너무 큰 차이가 나면 싱크 패킷을 보내어 좌표 보정
+	//--------------------------------------------------------------------------------------
 	if (abs(character->x - x) > dfERROR_RANGE || abs(character->y - y) > dfERROR_RANGE)
 	{
 		_syncErrorCount++;
 		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStart Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
 			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
 
+		//--------------------------------------------------------------------------------------
+		// 주변 영향권 섹터에 있는 캐릭터들에게 싱크 패킷 보내기
+		//--------------------------------------------------------------------------------------
 		Packet::MakeSync(sc_packet, character->sessionID, character->x, character->y);
 		SendSectorAround(character->session, sc_packet, true);
 
@@ -863,6 +1022,9 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	character->x = x;
 	character->y = y;
 
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 방향 및 동작 변경
+	//--------------------------------------------------------------------------------------
 	switch (direction)
 	{
 	case dfPACKET_MOVE_DIR_LL:
@@ -880,9 +1042,15 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	}
 	character->action = direction;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 이동 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeMoveStart(sc_packet, character->sessionID, (char)character->action, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
+	//--------------------------------------------------------------------
+	// 캐릭터의 이동 동작으로 섹터가 변경된 경우 섹터 업데이트 처리
+	//--------------------------------------------------------------------
 	if (UpdateCharacter_Sector(character))
 		UpdatePacket_Sector(character);
 
@@ -894,24 +1062,36 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 }
 bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 정지 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop before - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
-	
+
+	//--------------------------------------------------------------------------------------
+	// 패킷 역직렬화
+	//--------------------------------------------------------------------------------------
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
 
+	//--------------------------------------------------------------------------------------
+	// 서버의 위치와 받은 패킷의 위치 값이 너무 큰 차이가 나면 싱크 패킷을 보내어 좌표 보정
+	//--------------------------------------------------------------------------------------
 	if (abs(character->x - x) > dfERROR_RANGE || abs(character->y - y) > dfERROR_RANGE)
 	{
 		_syncErrorCount++;
 		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStop Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
 			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
 
+		//--------------------------------------------------------------------------------------
+		// 주변 영향권 섹터에 있는 캐릭터들에게 싱크 패킷 보내기
+		//--------------------------------------------------------------------------------------
 		Packet::MakeSync(sc_packet, character->sessionID, character->x, character->y);
 		SendSectorAround(character->session, sc_packet, true);
 
@@ -921,9 +1101,15 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	character->x = x;
 	character->y = y;
 
+	//--------------------------------------------------------------------
+	// 캐릭터의 정지 동작으로 섹터가 변경된 경우 섹터 업데이트 처리
+	//--------------------------------------------------------------------
 	if (UpdateCharacter_Sector(character))
 		UpdatePacket_Sector(character);
 
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 방향 및 동작 변경
+	//--------------------------------------------------------------------------------------
 	switch (direction)
 	{
 	case dfPACKET_MOVE_DIR_LL:
@@ -941,6 +1127,9 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	}
 	character->action = -1;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 정지 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeMoveStop(sc_packet, character->sessionID, (char)character->direction, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
@@ -952,6 +1141,9 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 }
 bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 공격1 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
@@ -959,14 +1151,23 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack1 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
+	//--------------------------------------------------------------------------------------
+	// 패킷 역직렬화
+	//--------------------------------------------------------------------------------------
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 행동 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeAttack1(sc_packet, character->sessionID, character->direction, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들을 대상으로 공격 판정 확인
+	//--------------------------------------------------------------------------------------
 	bool find = false;
 	SECTOR_AROUND sectorAround;
 	GetSectorAround(character->curSector.x, character->curSector.y, &sectorAround);
@@ -981,7 +1182,14 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 
 			if (CollisionCheck_Attack1(character, target_character))
 			{
+				//--------------------------------------------------------------------------------------
+				// 공격 판정 처리
+				//--------------------------------------------------------------------------------------
 				target_character->hp -= (target_character->hp > dfATTACK1_DAMAGE) ? dfATTACK1_DAMAGE : target_character->hp;
+
+				//--------------------------------------------------------------------------------------
+				// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 판정 패킷 보내기
+				//--------------------------------------------------------------------------------------
 				Packet::MakeDamage(sc_packet, character->sessionID, target_character->sessionID, target_character->hp);
 				SendSectorAround(target_character->session, sc_packet, true);
 				find = true;
@@ -995,6 +1203,9 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 }
 bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 공격2 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
@@ -1002,14 +1213,23 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack2 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
+	//--------------------------------------------------------------------------------------
+	// 패킷 역직렬화
+	//--------------------------------------------------------------------------------------
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 행동 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeAttack2(sc_packet, character->sessionID, character->direction, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들을 대상으로 공격 판정 확인
+	//--------------------------------------------------------------------------------------
 	bool find = false;
 	SECTOR_AROUND sectorAround;
 	GetSectorAround(character->curSector.x, character->curSector.y, &sectorAround);
@@ -1024,7 +1244,14 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 
 			if (CollisionCheck_Attack2(character, target_character))
 			{
+				//--------------------------------------------------------------------------------------
+				// 공격 판정 처리
+				//--------------------------------------------------------------------------------------
 				target_character->hp -= (target_character->hp > dfATTACK2_DAMAGE) ? dfATTACK2_DAMAGE : target_character->hp;
+
+				//--------------------------------------------------------------------------------------
+				// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 판정 패킷 보내기
+				//--------------------------------------------------------------------------------------
 				Packet::MakeDamage(sc_packet, character->sessionID, target_character->sessionID, target_character->hp);
 				SendSectorAround(target_character->session, sc_packet, true);
 				find = true;
@@ -1038,6 +1265,9 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 }
 bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 캐릭터 공격3 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
@@ -1045,14 +1275,23 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack3 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
 		, character->sessionID, character->direction, character->x, character->y);
 
+	//--------------------------------------------------------------------------------------
+	// 패킷 역직렬화
+	//--------------------------------------------------------------------------------------
 	unsigned char direction;
 	unsigned short x;
 	unsigned short y;
 	*cs_packet >> direction >> x >> y;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 행동 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeAttack3(sc_packet, character->sessionID, character->direction, character->x, character->y);
 	SendSectorAround(session, sc_packet, false);
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들을 대상으로 공격 판정 확인
+	//--------------------------------------------------------------------------------------
 	bool find = false;
 	SECTOR_AROUND sectorAround;
 	GetSectorAround(character->curSector.x, character->curSector.y, &sectorAround);
@@ -1067,7 +1306,14 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 
 			if (CollisionCheck_Attack3(character, target_character))
 			{
+				//--------------------------------------------------------------------------------------
+				// 공격 판정 처리
+				//--------------------------------------------------------------------------------------
 				target_character->hp -= (target_character->hp > dfATTACK3_DAMAGE) ? dfATTACK3_DAMAGE : target_character->hp;
+
+				//--------------------------------------------------------------------------------------
+				// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 공격 판정 패킷 보내기
+				//--------------------------------------------------------------------------------------
 				Packet::MakeDamage(sc_packet, character->sessionID, target_character->sessionID, target_character->hp);
 				SendSectorAround(target_character->session, sc_packet, true);
 				find = true;
@@ -1081,6 +1327,9 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 }
 bool GameServer::PacketProc_Sync(SESSION * session, Jay::SerializationBuffer* cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 싱크 패킷 처리
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 	auto iter = _characterMap.find(session->socket);
 	CHARACTER* character = iter->second;
@@ -1092,6 +1341,9 @@ bool GameServer::PacketProc_Sync(SESSION * session, Jay::SerializationBuffer* cs
 	character->x = x;
 	character->y = y;
 
+	//--------------------------------------------------------------------------------------
+	// 주변 영향권 섹터에 있는 캐릭터들에게 해당 캐릭터의 싱크 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeSync(sc_packet, character->sessionID, character->x, character->y);
 	SendSectorAround(session, sc_packet, true);
 
@@ -1100,11 +1352,17 @@ bool GameServer::PacketProc_Sync(SESSION * session, Jay::SerializationBuffer* cs
 }
 bool GameServer::PacketProc_Echo(SESSION * session, Jay::SerializationBuffer * cs_packet)
 {
+	//--------------------------------------------------------------------------------------
+	// 에코 패킷 처리 (Heartbeat)
+	//--------------------------------------------------------------------------------------
 	Jay::SerializationBuffer *sc_packet = _packetPool.Alloc();
 
 	unsigned long time;
 	*cs_packet >> time;
 
+	//--------------------------------------------------------------------------------------
+	// 해당 캐릭터에게 에코 패킷 보내기
+	//--------------------------------------------------------------------------------------
 	Packet::MakeEcho(sc_packet, time);
 	SendUnicast(session, sc_packet);
 

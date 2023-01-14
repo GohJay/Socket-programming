@@ -2,13 +2,13 @@
 #include "NetServer.h"
 #include "Util.h"
 #include "Packet.h"
-#include "Protocol.h"
 #include "define.h"
 #include "../Network/include/SerializationBuffer.h"
+#include "../Common/Protocol.h"
 #include <mstcpip.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32")
-#pragma comment(lib, "../Network/lib/Release/Network.lib")
+#pragma comment(lib, "../Network/lib/Network.lib")
 
 NetServer::NetServer() 
 	: _listenSocket(INVALID_SOCKET), _keyUserNo(1), _keyRoomNo(1), _clientPool(0), _roomPool(0), _packetPool(0)

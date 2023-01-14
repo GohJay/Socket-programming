@@ -1,6 +1,6 @@
 #ifndef __RINGBUFFER__H_
 #define __RINGBUFFER__H_
-#include "../../Common/Base.h"
+#include "Base.h"
 
 JAYNAMESPACE
 /**
@@ -14,7 +14,7 @@ JAYNAMESPACE
 class RingBuffer
 {
 public:
-	RingBuffer(int bufferSize = 1024);
+	RingBuffer(int bufferSize = 8192);
 	~RingBuffer();
 public:
 	/**

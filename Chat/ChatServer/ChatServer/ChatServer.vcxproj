@@ -148,14 +148,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\ObjectPool.h" />
+    <ClInclude Include="..\Common\Protocol.h" />
     <ClInclude Include="..\Network\include\RingBuffer.h" />
     <ClInclude Include="..\Network\include\SerializationBuffer.h" />
     <ClInclude Include="define.h" />
     <ClInclude Include="NetServer.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Packet.h" />
-    <ClInclude Include="Protocol.h" />
-    <ClInclude Include="ServerManager.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -163,7 +162,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NetServer.cpp" />
     <ClCompile Include="Packet.cpp" />
-    <ClCompile Include="ServerManager.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

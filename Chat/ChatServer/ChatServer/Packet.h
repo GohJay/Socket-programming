@@ -1,7 +1,7 @@
 #pragma once
-#include "Protocol.h"
 #include "Object.h"
 #include "../Network/include/SerializationBuffer.h"
+#include "../Common/Protocol.h"
 
 class Packet
 {

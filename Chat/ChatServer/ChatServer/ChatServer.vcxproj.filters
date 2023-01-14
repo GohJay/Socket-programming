@@ -36,12 +36,6 @@
     <ClInclude Include="Packet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Protocol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ServerManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="NetServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -57,6 +51,9 @@
     <ClInclude Include="define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\Protocol.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -66,9 +63,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Packet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ServerManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NetServer.cpp">

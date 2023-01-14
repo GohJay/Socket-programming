@@ -145,6 +145,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\List.h" />
     <ClInclude Include="..\Common\Protocol.h" />
     <ClInclude Include="..\Network\include\RingBuffer.h" />
     <ClInclude Include="..\Network\include\SerializationBuffer.h" />

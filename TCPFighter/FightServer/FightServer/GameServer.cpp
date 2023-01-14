@@ -7,7 +7,7 @@
 #include <ws2tcpip.h>
 #include "../Network/include/SerializationBuffer.h"
 #pragma comment(lib, "ws2_32")
-#pragma comment(lib, "../Network/lib/Release/Network.lib")
+#pragma comment(lib, "../Network/lib/Network.lib")
 
 GameServer::GameServer() : _listenSocket(INVALID_SOCKET), _allocId(rand() % 1000)
 {

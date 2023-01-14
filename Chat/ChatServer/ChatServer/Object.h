@@ -1,6 +1,6 @@
 #pragma once
 #include "../Network/include/RingBuffer.h"
-#include "Protocol.h"
+#include "../Common/Protocol.h"
 #include <list>
 
 enum POSITION
