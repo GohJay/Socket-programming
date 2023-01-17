@@ -63,7 +63,6 @@ void ServerManager::Control()
 			wprintf_s(L"Control Mode: Press Q - Quit\n");
 			wprintf_s(L"Control Mode: Press L - Key Lock\n");
 			wprintf_s(L"Control Mode: Press M - Monitoring\n");
-			wprintf_s(L"Control Mode: Press R - Reload LogLevel\n");
 		}
 
 		// 키보드 제어 잠금
