@@ -75,7 +75,7 @@ bool LoadData()
 	confParser.GetValue(L"SERVER", L"USER_MAX", (int*)&g_ServerInfo.userMax);
 	confParser.GetValue(L"SERVER", L"PACKET_CODE", (int*)&g_ServerInfo.packetCode);
 	confParser.GetValue(L"SERVER", L"PACKET_KEY", (int*)&g_ServerInfo.packetKey);
-	confParser.GetValue(L"SERVER", L"LOG", &g_ServerInfo.logLevel);
+	confParser.GetValue(L"SERVER", L"LOG_LEVEL", &g_ServerInfo.logLevel);
 	confParser.GetValue(L"SERVER", L"LOG_PATH", g_ServerInfo.logPath);
 	confParser.GetValue(L"SERVICE", L"TIMEOUT_SEC", &g_ServiceInfo.timeoutSec);
 	return true;

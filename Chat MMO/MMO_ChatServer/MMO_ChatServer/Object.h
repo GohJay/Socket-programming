@@ -16,17 +16,11 @@ struct SECTOR_AROUND
 
 struct CHARACTER
 {
-	enum STATUS
-	{
-		AUTH = 0,
-		LOGIN,
-		PLAY
-	};
-	STATUS status;
 	DWORD64 sessionID;
 	INT64 accountNo;
 	WCHAR id[20];
 	WCHAR nickname[20];
 	char sessionKey[64];
+	bool login;
 	SECTOR sector;
 };

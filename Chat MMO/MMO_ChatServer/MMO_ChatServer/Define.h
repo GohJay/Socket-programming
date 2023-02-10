@@ -2,6 +2,7 @@
 
 #define dfSECTOR_MAX_X			50 + 1
 #define dfSECTOR_MAX_Y			50 + 1
+#define dfUNKNOWN_SECTOR		-1
 
 struct SERVER_INFO
 {

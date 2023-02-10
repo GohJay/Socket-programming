@@ -48,13 +48,17 @@ private:
 	void RecvProc(DWORD64 sessionID, Jay::NetPacket* packet);
 	void LeaveProc(DWORD64 sessionID);
 private:
+	CHARACTER* NewCharacter(DWORD64 sessionID);
+	void DeleteCharacter(DWORD64 sessionID);
+	CHARACTER* FindCharacter(DWORD64 sessionID);
 	bool PacketProc(DWORD64 sessionID, Jay::NetPacket* packet, WORD type);
 	bool PacketProc_ChatLogin(DWORD64 sessionID, Jay::NetPacket* packet);
 	bool PacketProc_ChatSectorMove(DWORD64 sessionID, Jay::NetPacket* packet);
 	bool PacketProc_ChatMessage(DWORD64 sessionID, Jay::NetPacket* packet);
-	bool IsMovableCharacter(int x, int y);
+	bool IsMovableCharacter(int sectorX, int sectorY);
 	void AddCharacter_Sector(CHARACTER* character, int sectorX, int sectorY);
 	void RemoveCharacter_Sector(CHARACTER* character);
+	void UpdateCharacter_Sector(CHARACTER* character, int sectorX, int sectorY);
 	void GetSectorAround(int sectorX, int sectorY, SECTOR_AROUND* sectorAround);
 	void SendSectorOne(Jay::NetPacket* packet, int sectorX, int sectorY);
 	void SendSectorAround(CHARACTER* character, Jay::NetPacket* packet);
@@ -67,5 +71,5 @@ private:
 	HANDLE _hExitEvent;
 	WORD _userMax;
 	std::thread _updateThread;
-	std::list<CHARACTER*> _sector[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
+	std::list<CHARACTER*> _sectorList[dfSECTOR_MAX_Y][dfSECTOR_MAX_X];
 };

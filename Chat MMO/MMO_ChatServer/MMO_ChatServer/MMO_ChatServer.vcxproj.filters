@@ -19,6 +19,9 @@
     <Filter Include="Lib">
       <UniqueIdentifier>{6aae6fea-86eb-418d-abeb-07bd21a3ad77}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Config">
+      <UniqueIdentifier>{ecadd87c-9b02-4bdf-8620-529c9f3ecd30}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -86,5 +89,19 @@
     <ClInclude Include="..\Common\ObjectPool_TLS.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Lib\Network\include\Error.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\LockFreeQueue.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\ObjectPool.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\MMO_ChatServer-MultiThread\Config.cnf">
+      <Filter>Config</Filter>
+    </None>
   </ItemGroup>
 </Project>

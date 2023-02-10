@@ -244,13 +244,9 @@ void ChatServer::JoinProc(DWORD64 sessionID)
 	//--------------------------------------------------------------------
 	// 새로 연결된 세션에 대한 캐릭터 할당
 	//--------------------------------------------------------------------
-	CHARACTER* character = _characterPool.Alloc();
-	character->sessionID = sessionID;
-	character->status = CHARACTER::AUTH;
-
-	_characterMap.insert({ sessionID, character });
+	NewCharacter(sessionID);
 }
-void ChatServer::RecvProc(DWORD64 sessionID, Jay::NetPacket* packet)
+void ChatServer::RecvProc(DWORD64 sessionID, NetPacket* packet)
 {
 	//--------------------------------------------------------------------
 	// 수신 받은 메시지 처리
@@ -266,7 +262,7 @@ void ChatServer::RecvProc(DWORD64 sessionID, Jay::NetPacket* packet)
 	}
 	catch (NetException& ex)
 	{
-		Logger::WriteLog(L"Chat", LOG_LEVEL_ERROR, L"NetException: %d, sessionID: %llu", ex.GetLastError(), sessionID);
+		Logger::WriteLog(L"Chat", LOG_LEVEL_ERROR, L"NetException: %d, sessionID: %p", ex.GetLastError(), sessionID);
 		Disconnect(sessionID);
 	}
 
@@ -277,16 +273,49 @@ void ChatServer::LeaveProc(DWORD64 sessionID)
 	//--------------------------------------------------------------------
 	// 연결 종료한 세션의 캐릭터 제거
 	//--------------------------------------------------------------------
+	DeleteCharacter(sessionID);
+}
+CHARACTER* ChatServer::NewCharacter(DWORD64 sessionID)
+{
+	CHARACTER* character;
+
+	character = _characterPool.Alloc();
+	character->sessionID = sessionID;
+	character->login = false;
+	character->sector.x = dfUNKNOWN_SECTOR;
+	character->sector.y = dfUNKNOWN_SECTOR;
+
+	_characterMap.insert({ sessionID, character });
+	return character;
+}
+void ChatServer::DeleteCharacter(DWORD64 sessionID)
+{
+	CHARACTER* character;
+
 	auto iter = _characterMap.find(sessionID);
 	if (iter == _characterMap.end())
 		return;
 
-	CHARACTER* character = iter->second;
-	if (character->status == CHARACTER::PLAY)
-		RemoveCharacter_Sector(character);
-
-	_characterPool.Free(character);
+	character = iter->second;
 	_characterMap.erase(iter);
+
+	if (character->sector.x != dfUNKNOWN_SECTOR && character->sector.y != dfUNKNOWN_SECTOR)
+	{
+		RemoveCharacter_Sector(character);
+	}
+	_characterPool.Free(character);
+}
+CHARACTER* ChatServer::FindCharacter(DWORD64 sessionID)
+{
+	CHARACTER* character;
+
+	auto iter = _characterMap.find(sessionID);
+	if (iter == _characterMap.end())
+		character = nullptr;
+	else
+		character = iter->second;
+
+	return character;
 }
 bool ChatServer::PacketProc(DWORD64 sessionID, NetPacket* packet, WORD type)
 {
@@ -321,10 +350,7 @@ bool ChatServer::PacketProc_ChatLogin(DWORD64 sessionID, NetPacket* packet)
 	//--------------------------------------------------------------------
 	// 로그인 메시지 처리
 	//--------------------------------------------------------------------
-	auto iter = _characterMap.find(sessionID);
-	if (iter == _characterMap.end())
-		return false;
-
+	CHARACTER* character = FindCharacter(sessionID);
 	INT64 accountNo;
 	WCHAR id[20];
 	WCHAR nickname[20];
@@ -341,13 +367,12 @@ bool ChatServer::PacketProc_ChatLogin(DWORD64 sessionID, NetPacket* packet)
 		return false;
 
 	//--------------------------------------------------------------------
-	// 기존에 이미 인증한 유저인지 확인
+	// 이미 로그인한 유저인지 검증
 	//--------------------------------------------------------------------
-	CHARACTER* character = iter->second;
-	if (character->status != CHARACTER::AUTH)
+	if (character->login)
 		return false;
 
-	character->status = CHARACTER::LOGIN;
+	character->login = true;
 	character->accountNo = accountNo;
 	wcscpy_s(character->id, sizeof(id) / 2, id);
 	wcscpy_s(character->nickname, sizeof(nickname) / 2, nickname);
@@ -375,10 +400,7 @@ bool ChatServer::PacketProc_ChatSectorMove(DWORD64 sessionID, NetPacket* packet)
 	//--------------------------------------------------------------------
 	// 섹터 이동 처리
 	//--------------------------------------------------------------------
-	auto iter = _characterMap.find(sessionID);
-	if (iter == _characterMap.end())
-		return false;
-
+	CHARACTER* character = FindCharacter(sessionID);
 	INT64 accountNo;
 	WORD sectorX;
 	WORD sectorY;
@@ -386,9 +408,14 @@ bool ChatServer::PacketProc_ChatSectorMove(DWORD64 sessionID, NetPacket* packet)
 	(*packet) >> accountNo >> sectorX >> sectorY;
 
 	//--------------------------------------------------------------------
+	// 로그인하지 않은 유저인지 검증
+	//--------------------------------------------------------------------
+	if (!character->login)
+		return false;
+
+	//--------------------------------------------------------------------
 	// 계정 번호 검증
 	//--------------------------------------------------------------------
-	CHARACTER* character = iter->second;
 	if (character->accountNo != accountNo)
 		return false;
 
@@ -399,23 +426,10 @@ bool ChatServer::PacketProc_ChatSectorMove(DWORD64 sessionID, NetPacket* packet)
 		return false;
 
 	//--------------------------------------------------------------------
-	// 해당 캐릭터 상태에 따른 섹터 이동 처리
+	// 섹터 이동 처리
 	//--------------------------------------------------------------------
-	switch (character->status)
-	{
-	case CHARACTER::AUTH:
-		return false;
-	case CHARACTER::LOGIN:
-		character->status = CHARACTER::PLAY;
-		AddCharacter_Sector(character, sectorX, sectorY);
-		break;
-	case CHARACTER::PLAY:
-		RemoveCharacter_Sector(character);
-		AddCharacter_Sector(character, sectorX, sectorY);
-		break;
-	default:
-		break;
-	}
+	if (character->sector.x != sectorX || character->sector.y != sectorY)
+		UpdateCharacter_Sector(character, sectorX, sectorY);
 
 	//--------------------------------------------------------------------
 	// 오브젝트풀에서 직렬화 버퍼 할당
@@ -442,10 +456,7 @@ bool ChatServer::PacketProc_ChatMessage(DWORD64 sessionID, NetPacket* packet)
 	//--------------------------------------------------------------------
 	// 채팅 메시지 처리
 	//--------------------------------------------------------------------
-	auto iter = _characterMap.find(sessionID);
-	if (iter == _characterMap.end())
-		return false;
-
+	CHARACTER* character = FindCharacter(sessionID);
 	INT64 accountNo;
 	WORD messageLen;
 	WCHAR message[256];
@@ -457,14 +468,13 @@ bool ChatServer::PacketProc_ChatMessage(DWORD64 sessionID, NetPacket* packet)
 	if (packet->GetData((char*)message, messageLen) != messageLen)
 		return false;
 
-	CHARACTER* character = iter->second;
 	if (character->accountNo != accountNo)
 		return false;
 
 	//--------------------------------------------------------------------
-	// 해당 캐릭터가 채팅이 가능한 상태인지 검증
+	// 로그인하지 않은 유저인지 검증
 	//--------------------------------------------------------------------
-	if (character->status != CHARACTER::PLAY)
+	if (!character->login)
 		return false;
 
 	//--------------------------------------------------------------------
@@ -489,12 +499,12 @@ bool ChatServer::PacketProc_ChatMessage(DWORD64 sessionID, NetPacket* packet)
 	NetPacket::Free(resPacket);
 	return true;
 }
-bool ChatServer::IsMovableCharacter(int x, int y)
+bool ChatServer::IsMovableCharacter(int sectorX, int sectorY)
 {
 	//--------------------------------------------------------------------
 	// 섹터 좌표 이동 가능여부 확인
 	//--------------------------------------------------------------------
-	if (x < dfSECTOR_MAX_X && y < dfSECTOR_MAX_Y)
+	if (sectorX < dfSECTOR_MAX_X && sectorY < dfSECTOR_MAX_Y)
 		return true;
 
 	return false;
@@ -506,14 +516,21 @@ void ChatServer::AddCharacter_Sector(CHARACTER* character, int sectorX, int sect
 	//--------------------------------------------------------------------
 	character->sector.x = sectorX;
 	character->sector.y = sectorY;
-	_sector[character->sector.y][character->sector.x].push_back(character);
+	_sectorList[character->sector.y][character->sector.x].push_back(character);
 }
 void ChatServer::RemoveCharacter_Sector(CHARACTER* character)
 {
 	//--------------------------------------------------------------------
 	// 섹터 리스트에서 플레이어 제거
 	//--------------------------------------------------------------------
-	_sector[character->sector.y][character->sector.x].remove(character);
+	_sectorList[character->sector.y][character->sector.x].remove(character);
+}
+void ChatServer::UpdateCharacter_Sector(CHARACTER* character, int sectorX, int sectorY)
+{
+	if (character->sector.x != dfUNKNOWN_SECTOR && character->sector.y != dfUNKNOWN_SECTOR)
+		RemoveCharacter_Sector(character);
+
+	AddCharacter_Sector(character, sectorX, sectorY);
 }
 void ChatServer::GetSectorAround(int sectorX, int sectorY, SECTOR_AROUND* sectorAround)
 {
@@ -540,24 +557,25 @@ void ChatServer::GetSectorAround(int sectorX, int sectorY, SECTOR_AROUND* sector
 		}
 	}
 }
-void ChatServer::SendSectorOne(Jay::NetPacket* packet, int sectorX, int sectorY)
+void ChatServer::SendSectorOne(NetPacket* packet, int sectorX, int sectorY)
 {
 	//--------------------------------------------------------------------
 	// 특정 섹터에 있는 유저들에게 메시지 보내기
 	//--------------------------------------------------------------------
-	std::list<CHARACTER*> *sectorList = &_sector[sectorY][sectorX];
+	std::list<CHARACTER*> *sectorList = &_sectorList[sectorY][sectorX];
 	for (auto iter = sectorList->begin(); iter != sectorList->end(); ++iter)
 	{
 		SendPacket((*iter)->sessionID, packet);
 	}
 }
-void ChatServer::SendSectorAround(CHARACTER* character, Jay::NetPacket* packet)
+void ChatServer::SendSectorAround(CHARACTER* character, NetPacket* packet)
 {
 	//--------------------------------------------------------------------
 	// 주변 영향권 섹터에 있는 유저들에게 메시지 보내기
 	//--------------------------------------------------------------------
 	SECTOR_AROUND sectorAround;
 	GetSectorAround(character->sector.x, character->sector.y, &sectorAround);
+
 	for (int i = 0; i < sectorAround.count; i++)
 	{
 		SendSectorOne(packet, sectorAround.around[i].x, sectorAround.around[i].y);
