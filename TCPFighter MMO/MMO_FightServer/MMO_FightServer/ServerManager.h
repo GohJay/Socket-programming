@@ -26,8 +26,6 @@ private:
 	bool _controlMode;
 	bool _monitoringFlag;
 	int _loopCount;
-	int _frameCount;
-	DWORD _accumtime;
 	DWORD _networkProcTime;
 	DWORD _logicProcTime;
 	DWORD _cleanupProcTime;

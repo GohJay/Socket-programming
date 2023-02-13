@@ -2,6 +2,7 @@
 #include "GameServer.h"
 #include "define.h"
 #include "Packet.h"
+#include "Timer.h"
 #include <mstcpip.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32")
@@ -96,8 +97,8 @@ void GameServer::Update()
 		//--------------------------------------------------------------------
 		// 캐릭터 동작에 따른 처리
 		//--------------------------------------------------------------------
-		unsigned short dx = dfSPEED_PLAYER_X;
-		unsigned short dy = dfSPEED_PLAYER_Y;
+		float dx = ((float)Timer::GetDeltaTime() / 1000) * dfSPEED_PLAYER_X;
+		float dy = ((float)Timer::GetDeltaTime() / 1000) * dfSPEED_PLAYER_Y;
 		switch (character->action)
 		{
 		case dfPACKET_MOVE_DIR_LL:
@@ -991,7 +992,7 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	CHARACTER* character = iter->second;
 	
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart before - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y, character->curSector.x, character->curSector.y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y, character->curSector.x, character->curSector.y);
 
 	//--------------------------------------------------------------------------------------
 	// 패킷 역직렬화
@@ -1008,7 +1009,7 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 	{
 		_syncErrorCount++;
 		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStart Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
-			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
+			, character->sessionID, character->action, (int)character->x, (int)character->y, x, y, _syncErrorCount);
 
 		//--------------------------------------------------------------------------------------
 		// 주변 영향권 섹터에 있는 캐릭터들에게 싱크 패킷 보내기
@@ -1055,7 +1056,7 @@ bool GameServer::PacketProc_MoveStart(SESSION * session, Jay::SerializationBuffe
 		UpdatePacket_Sector(character);
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStart after - sessionID: %d / Dir: %d / X: %d / Y: %d / SectionX: %d / SectionY: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y, character->curSector.x, character->curSector.y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y, character->curSector.x, character->curSector.y);
 
 	_packetPool.Free(sc_packet);
 	return true;
@@ -1070,7 +1071,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop before - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y);
 
 	//--------------------------------------------------------------------------------------
 	// 패킷 역직렬화
@@ -1087,7 +1088,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	{
 		_syncErrorCount++;
 		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_ERROR, L"%s() MoveStop Sync error - sessionID: %d / Dir: %d / X: %d / Y: %d / ErrorX: %d / ErrorY: %d / ErrorCount: %d", __FUNCTIONW__
-			, character->sessionID, character->action, character->x, character->y, x, y, _syncErrorCount);
+			, character->sessionID, character->action, (int)character->x, (int)character->y, x, y, _syncErrorCount);
 
 		//--------------------------------------------------------------------------------------
 		// 주변 영향권 섹터에 있는 캐릭터들에게 싱크 패킷 보내기
@@ -1134,7 +1135,7 @@ bool GameServer::PacketProc_MoveStop(SESSION * session, Jay::SerializationBuffer
 	SendSectorAround(session, sc_packet, false);
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() MoveStop after - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y);
 
 	_packetPool.Free(sc_packet);
 	return true;
@@ -1149,7 +1150,7 @@ bool GameServer::PacketProc_Attack1(SESSION * session, Jay::SerializationBuffer*
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack1 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y);
 
 	//--------------------------------------------------------------------------------------
 	// 패킷 역직렬화
@@ -1211,7 +1212,7 @@ bool GameServer::PacketProc_Attack2(SESSION * session, Jay::SerializationBuffer*
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack2 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y);
 
 	//--------------------------------------------------------------------------------------
 	// 패킷 역직렬화
@@ -1273,7 +1274,7 @@ bool GameServer::PacketProc_Attack3(SESSION * session, Jay::SerializationBuffer*
 	CHARACTER* character = iter->second;
 
 	Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_DEBUG, L"%s() Attack3 - sessionID: %d / Dir: %d / X: %d / Y: %d", __FUNCTIONW__
-		, character->sessionID, character->direction, character->x, character->y);
+		, character->sessionID, character->direction, (int)character->x, (int)character->y);
 
 	//--------------------------------------------------------------------------------------
 	// 패킷 역직렬화

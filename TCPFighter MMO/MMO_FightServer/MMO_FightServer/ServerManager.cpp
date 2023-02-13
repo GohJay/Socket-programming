@@ -10,7 +10,7 @@
 extern bool g_Shutdown;
 ServerManager ServerManager::_instance;
 
-ServerManager::ServerManager() : _controlMode(false), _monitoringFlag(false), _loopCount(0), _frameCount(0), _accumtime(0), _monitoringTime(0)
+ServerManager::ServerManager() : _controlMode(false), _monitoringFlag(false), _loopCount(0), _monitoringTime(0)
 {
 	LoadData();
 	Init();
@@ -32,16 +32,9 @@ void ServerManager::Run()
 	_networkProcTime += timeGetTime() - beforeTime;
 
 	// Logic Update
-	_accumtime += Timer::GetInstance()->GetDeltaTime();
-	if (_accumtime >= dfINTERVAL)
-	{
-		beforeTime = timeGetTime();
-		_server.Update();
-		_logicProcTime += timeGetTime() - beforeTime;
-
-		_accumtime -= dfINTERVAL;
-		_frameCount++;
-	}
+	beforeTime = timeGetTime();
+	_server.Update();
+	_logicProcTime += timeGetTime() - beforeTime;
 
 	// Session Cleanup
 	beforeTime = timeGetTime();
@@ -90,32 +83,6 @@ void ServerManager::Monitor()
 	if (currentTime - _monitoringTime < 1000)
 		return;
 
-	if (_frameCount != dfFRAME)
-	{
-		// 모니터링 정보 파일 로그 출력
-		Jay::Logger::WriteLog(L"Dev", LOG_LEVEL_SYSTEM, L"\n\
-Frame: %d, Loop/sec: %d\n\
-------------------------------------\n\
-Session Count: %d\n\
-Character Count: %d\n\
-------------------------------------\n\
-NetworkProc Time: %d ms\n\
-Logic Time: %d ms\n\
-Cleanup Time: %d ms\n\
-------------------------------------\n\
-Sync Message Count: %d\n\
-Unknown Message Count: %d\n\
-\n====================================\n"
-			, _frameCount, _loopCount
-			, _server._sessionMap.size()
-			, _server._characterMap.size()
-			, _networkProcTime
-			, _logicProcTime
-			, _cleanupProcTime
-			, _server._syncErrorCount
-			, _server._unknownPacketCount);
-	}
-
 	tm stTime;
 	time_t timer;
 	if (_monitoringFlag)
@@ -126,7 +93,7 @@ Unknown Message Count: %d\n\
 		// 모니터링 정보 콘솔 출력
 		wprintf_s(L"\
 [%d/%02d/%02d %02d:%02d:%02d]\n\
-Frame: %d, Loop/sec: %d\n\
+Loop/sec: %d\n\
 ------------------------------------\n\
 Session Count: %d\n\
 Character Count: %d\n\
@@ -139,7 +106,7 @@ Sync Message Count: %d\n\
 Unknown Message Count: %d\n\
 \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
 			, stTime.tm_year + 1900, stTime.tm_mon + 1, stTime.tm_mday, stTime.tm_hour, stTime.tm_min, stTime.tm_sec
-			, _frameCount, _loopCount
+			, _loopCount
 			, _server._sessionMap.size()
 			, _server._characterMap.size()
 			, _networkProcTime
@@ -151,7 +118,6 @@ Unknown Message Count: %d\n\
 
 	// 모니터링 정보 초기화
 	_loopCount = 0;
-	_frameCount = 0;
 	_networkProcTime = 0;
 	_logicProcTime = 0;
 	_cleanupProcTime = 0;

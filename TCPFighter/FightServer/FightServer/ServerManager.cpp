@@ -22,7 +22,7 @@ void ServerManager::Run()
 	_server->Network();
 
 	//Logic Update
-	_accumtime += Timer::GetInstance()->GetDeltaTime();
+	_accumtime += Timer::GetDeltaTime();
 	if (_accumtime >= dfINTERVAL)
 	{
 		_accumtime -= dfINTERVAL;

@@ -2,16 +2,11 @@
 
 class Timer
 {
-private:
-	Timer();
-	~Timer();
 public:
-	static Timer* GetInstance();
-	void Update();
-	DWORD GetDeltaTime();
+	static void Update();
+	static DWORD GetDeltaTime();
 private:
-	DWORD _aftertime;
-	DWORD _beforetime;
-	DWORD _deltatime;
-	static Timer _instance;
+	static DWORD _aftertime;
+	static DWORD _beforetime;
+	static DWORD _deltatime;
 };

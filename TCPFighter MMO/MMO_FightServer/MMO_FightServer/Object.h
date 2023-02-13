@@ -32,8 +32,8 @@ struct CHARACTER
 	unsigned long action;
 	unsigned char direction;
 	unsigned char hp;
-	unsigned short x;
-	unsigned short y;
+	float x;
+	float y;
 	SECTOR curSector;
 	SECTOR oldSector;
 };

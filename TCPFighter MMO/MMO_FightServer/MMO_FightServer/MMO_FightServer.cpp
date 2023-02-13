@@ -10,7 +10,7 @@ int main()
 
 	while (!g_Shutdown)
 	{
-		Timer::GetInstance()->Update();
+		Timer::Update();
 		ServerManager::GetInstance()->Run();
 		ServerManager::GetInstance()->Control();
 		ServerManager::GetInstance()->Monitor();
