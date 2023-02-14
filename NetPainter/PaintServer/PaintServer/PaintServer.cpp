@@ -2,7 +2,7 @@
 #include "resource.h"
 #include "Object.h"
 #include "../../Common/Protocol.h"
-#include "../../Common/HashTable.h"
+#include "../../Common/HashMap.h"
 #include <commctrl.h>
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "../../Network/lib/Release/Network.lib")
@@ -15,7 +15,7 @@
 
 HWND	g_hMainWnd;
 SOCKET	g_ListenSocket;
-Jay::HashTable<int, Session*> *g_SessionMap;
+Jay::HashMap<int, Session*> *g_SessionMap;
 
 VOID Error(const char* file, const char* func, int line, int err);
 VOID Init(HWND hWnd);
@@ -400,7 +400,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
-		g_SessionMap = new Jay::HashTable<int, Session*>;
+		g_SessionMap = new Jay::HashMap<int, Session*>;
 		Init(hWnd);
 		if (!Listen(hWnd))
 			DestroyWindow(hWnd);

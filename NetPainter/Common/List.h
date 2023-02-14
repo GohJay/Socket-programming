@@ -1,30 +1,31 @@
 #ifndef __LIST__H_
 #define __LIST__H_
+#include <stdlib.h>
 
 namespace Jay
 {
 	/**
 	* @file		List.h
-	* @brief	Doubly linked list Template Class
+	* @brief	Doubly linked List Template Class
 	* @details	Iterator 패턴으로 구현한 이중연결 리스트 클래스
 	* @author   고재현
-	* @date		2022-06-11
-	* @version  1.0.0
+	* @date		2023-01-08
+	* @version  1.0.1
 	**/
 	template<typename T>
-	class list
+	class List
 	{
 	public:
-		struct Node
+		struct NODE
 		{
 			T data;
-			Node* prev;
-			Node* next;
+			NODE* prev;
+			NODE* next;
 		};
 		class iterator
 		{
 		public:
-			iterator(Node* ptr = nullptr) : cur(ptr)
+			iterator(NODE* ptr = nullptr) : cur(ptr)
 			{
 			}
 		public:
@@ -63,19 +64,18 @@ namespace Jay
 				return cur != ref.cur;
 			}
 		private:
-			Node* cur;
-		private:
-			friend class list;
+			NODE* cur;
+			friend class List;
 		};
 	public:
-		list() : count(0)
+		List() : count(0)
 		{
 			head.prev = nullptr;
 			head.next = &tail;
 			tail.prev = &head;
 			tail.next = nullptr;
 		}
-		~list()
+		~List()
 		{
 			clear();
 		}
@@ -90,7 +90,7 @@ namespace Jay
 		}
 		void push_front(T data)
 		{
-			Node* pNode = new Node();
+			NODE* pNode = (NODE*)malloc(sizeof(NODE));
 			pNode->data = data;
 			pNode->prev = &head;
 			pNode->next = head.next;
@@ -100,7 +100,7 @@ namespace Jay
 		}
 		void push_back(T data)
 		{
-			Node* pNode = new Node();
+			NODE* pNode = (NODE*)malloc(sizeof(NODE));
 			pNode->data = data;
 			pNode->prev = tail.prev;
 			pNode->next = &tail;
@@ -110,26 +110,27 @@ namespace Jay
 		}
 		void pop_front()
 		{
-			Node* pNode = head.next;
+			NODE* pNode = head.next;
 			head.next->next->prev = &head;
 			head.next = head.next->next;
-			delete pNode;
+			free(pNode);
 			count--;
 		}
 		void pop_back()
 		{
-			Node* pNode = tail.prev;
+			NODE* pNode = tail.prev;
 			tail.prev->prev->next = &tail;
 			tail.prev = tail.prev->prev;
-			delete pNode;
+			free(pNode);
 			count--;
 		}
 		iterator erase(iterator iter)
 		{
-			iterator temp(iter.cur->next);
-			iter.cur->prev->next = iter.cur->next;
-			iter.cur->next->prev = iter.cur->prev;
-			delete iter.cur;
+			NODE* pNode = iter.cur;
+			iterator temp(pNode->next);
+			pNode->prev->next = pNode->next;
+			pNode->next->prev = pNode->prev;
+			free(pNode);
 			count--;
 			return temp;
 		}
@@ -161,10 +162,10 @@ namespace Jay
 			return count == 0;
 		}
 	private:
-		Node head;
-		Node tail;
-		int count;
+		NODE head;
+		NODE tail;
+		long count;
 	};
 }
 
-#endif // !__LIST__H_
+#endif !__LIST__H_

@@ -1,33 +1,40 @@
-#ifndef __HASHTABLE__H_
-#define __HASHTABLE__H_
-#include "Base.h"
+#ifndef __HASHMAP__H_
+#define __HASHMAP__H_
 #include "List.h"
+#include <string>
 
 namespace Jay
 {
+	template<typename K>
+	int GetHashCode(K key);
+	template<>
+	int GetHashCode(std::string key);
+	template<>
+	int GetHashCode(std::wstring key);
+
 	/**
 	* @file		HashMap.h
 	* @brief	HashMap Template Class
 	* @details	Iterator 패턴으로 구현한 해시테이블 클래스
 	* @author   고재현
-	* @date		2022-08-12
-	* @version  1.0.0
+	* @date		2023-01-08
+	* @version  1.0.1
 	**/
 	template<typename K, typename V>
 	class HashMap
 	{
 	private:
-		struct Map
+		struct MAP
 		{
 			K key;
 			V value;
-			Map* prev;
-			Map* next;
+			MAP* prev;
+			MAP* next;
 		};
 		class iterator
 		{
 		public:
-			iterator(Map* ptr = nullptr) : cur(ptr)
+			iterator(MAP* ptr = nullptr) : cur(ptr)
 			{
 			}
 		public:
@@ -70,14 +77,13 @@ namespace Jay
 				return cur != ref.cur;
 			}
 		private:
-			Map* cur;
-		private:
+			MAP* cur;
 			friend class HashMap;
 		};
 	public:
 		HashMap() : tableSize(1024), count(0)
 		{
-			table = new Jay::list<Map*>[tableSize]();
+			table = new List<MAP*>[tableSize]();
 			head.prev = nullptr;
 			head.next = &tail;
 			tail.prev = &head;
@@ -103,11 +109,11 @@ namespace Jay
 			int index = ConvertToIndex(hashcode);
 			for (auto iter = table[index].begin(); iter != table[index].end(); ++iter)
 			{
-				Map* pMap = *iter;
+				MAP* pMap = *iter;
 				if (key == pMap->key)
 					return false;
 			}
-			Map* pMap = new Map();
+			MAP* pMap = new MAP();
 			pMap->key = key;
 			pMap->value = value;
 			pMap->prev = tail.prev;
@@ -125,7 +131,7 @@ namespace Jay
 			int index = ConvertToIndex(hashcode);
 			for (auto iter = table[index].begin(); iter != table[index].end(); ++iter)
 			{
-				Map* pMap = *iter;
+				MAP* pMap = *iter;
 				if (key == pMap->key)
 				{
 					iterator output(pMap->next);
@@ -145,7 +151,7 @@ namespace Jay
 			int index = ConvertToIndex(hashcode);
 			for (auto iter = table[index].begin(); iter != table[index].end(); ++iter)
 			{
-				Map* pMap = *iter;
+				MAP* pMap = *iter;
 				if (key == pMap->key)
 					return iterator(pMap);
 			}
@@ -173,25 +179,32 @@ namespace Jay
 			return hashcode % tableSize;
 		}
 	private:
-		Jay::list<Map*> *table;
-		Map head;
-		Map tail;
+		List<MAP*> *table;
+		MAP head;
+		MAP tail;
 		int tableSize;
-		int count;
+		long count;
 	};
+
 	template<typename K>
-	int GetHashCode(K key)
-	{		
+	inline int GetHashCode(K key)
+	{
 		return abs(static_cast<int>(key));
 	}
 	template<>
-	int GetHashCode(std::string key)
+	inline int GetHashCode(std::string key)
 	{
 		int hashcode = 0;
-		for each (char s in key)
-		{
-			hashcode += s;
-		}
+		for (int i = 0; i < key.size(); i++)
+			hashcode += key[i];
+		return hashcode;
+	}
+	template<>
+	inline int GetHashCode(std::wstring key)
+	{
+		int hashcode = 0;
+		for (int i = 0; i < key.size(); i++)
+			hashcode += key[i];
 		return hashcode;
 	}
 }
